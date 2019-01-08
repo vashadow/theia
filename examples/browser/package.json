@@ -14,6 +14,7 @@
     "@theia/console": "^0.3.19",
     "@theia/core": "^0.3.19",
     "@theia/cpp": "^0.3.19",
+    "@theia/default-branding": "^0.3.19",
     "@theia/debug": "^0.3.19",
     "@theia/debug-nodejs": "^0.3.19",
     "@theia/editor": "^0.3.19",
