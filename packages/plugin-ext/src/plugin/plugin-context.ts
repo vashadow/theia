@@ -13,6 +13,9 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
+
+// tslint:disable:no-any
+
 import * as theia from '@theia/plugin';
 import { CommandRegistryImpl } from './command-registry';
 import { Emitter } from '@theia/core/lib/common/event';
@@ -153,23 +156,42 @@ export function createAPIFactory(
     return function (plugin: InternalPlugin): typeof theia {
         const commands: typeof theia.commands = {
             // tslint:disable-next-line:no-any
-            registerCommand(command: theia.Command, handler?: <T>(...args: any[]) => T | Thenable<T>): Disposable {
-                return commandRegistry.registerCommand(command, handler);
+            registerCommand(command: theia.Command, handler?: <T>(...args: any[]) => T | Thenable<T>, thisArg?: any): Disposable {
+                return commandRegistry.registerCommand(command, handler, thisArg);
             },
             // tslint:disable-next-line:no-any
             executeCommand<T>(commandId: string, ...args: any[]): PromiseLike<T | undefined> {
                 return commandRegistry.executeCommand<T>(commandId, ...args);
             },
-            // tslint:disable-next-line:no-any
-            registerTextEditorCommand(command: theia.Command, callback: (textEditor: theia.TextEditor, edit: theia.TextEditorEdit, ...arg: any[]) => void): Disposable {
-                throw new Error('Function registerTextEditorCommand is not implemented');
+            registerTextEditorCommand(command: string, handler: (textEditor: theia.TextEditor, edit: theia.TextEditorEdit, ...arg: any[]) => void, thisArg?: any): Disposable {
+                return commandRegistry.registerCommand({ id: command }, (...args: any[]): any => {
+                    const activeTextEditor = editors.getActiveEditor();
+                    if (!activeTextEditor) {
+                        console.warn('Cannot execute ' + command + ' because there is no active text editor.');
+                        return undefined;
+                    }
+
+                    return activeTextEditor.edit((edit: theia.TextEditorEdit) => {
+                        args.unshift(activeTextEditor, edit);
+                        handler.apply(thisArg, args);
+                    }).then(result => {
+                        if (!result) {
+                            console.warn('Edits from command ' + command + ' were not applied.');
+                        }
+                    }, err => {
+                        console.warn('An error occurred while running command ' + command, err);
+                    });
+                });
             },
             // tslint:disable-next-line:no-any
-            registerHandler(commandId: string, handler: (...args: any[]) => any): Disposable {
-                return commandRegistry.registerHandler(commandId, handler);
+            registerHandler(commandId: string, handler: (...args: any[]) => any, thisArg?: any): Disposable {
+                return commandRegistry.registerHandler(commandId, handler, thisArg);
             },
             getKeyBinding(commandId: string): PromiseLike<theia.CommandKeyBinding[] | undefined> {
                 return commandRegistry.getKeyBinding(commandId);
+            },
+            getCommands(filterInternal: boolean = false): PromiseLike<string[]> {
+                return commandRegistry.getCommands(filterInternal);
             }
         };
 
@@ -334,6 +356,9 @@ export function createAPIFactory(
         };
 
         const workspace: typeof theia.workspace = {
+            get rootPath(): string | undefined {
+                return workspaceExt.rootPath;
+            },
             get workspaceFolders(): theia.WorkspaceFolder[] | undefined {
                 return workspaceExt.workspaceFolders;
             },

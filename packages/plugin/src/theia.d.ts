@@ -1996,7 +1996,7 @@ declare module '@theia/plugin' {
          *
          * Throw if a command is already registered for the given command identifier.
          */
-        export function registerCommand(command: Command, handler?: (...args: any[]) => any): Disposable;
+        export function registerCommand(command: Command, handler?: (...args: any[]) => any, thisArg?: any): Disposable;
 
         /**
          * Register the given handler for the given command identifier.
@@ -2006,15 +2006,23 @@ declare module '@theia/plugin' {
          *
          * Throw if a handler for the given command identifier is already registered.
          */
-        export function registerHandler(commandId: string, handler: (...args: any[]) => any): Disposable;
+        export function registerHandler(commandId: string, handler: (...args: any[]) => any, thisArg?: any): Disposable;
 
         /**
-         * Register a text editor command which can execute only if active editor present and command has access to the active editor
+         * Registers a text editor command that can be invoked via a keyboard shortcut,
+         * a menu item, an action, or directly.
          *
-         * @param command a command description
-         * @param handler a command handler with access to text editor
+         * Text editor commands are different from ordinary [commands](#commands.registerCommand) as
+         * they only execute when there is an active editor when the command is called. Also, the
+         * command handler of an editor command has access to the active editor and to an
+         * [edit](#TextEditorEdit)-builder.
+         *
+         * @param command A unique identifier for the command.
+         * @param callback A command handler function with access to an [editor](#TextEditor) and an [edit](#TextEditorEdit).
+         * @param thisArg The `this` context used when invoking the handler function.
+         * @return Disposable which unregisters this command on disposal.
          */
-        export function registerTextEditorCommand(command: Command, handler: (textEditor: TextEditor, edit: TextEditorEdit, ...arg: any[]) => void): Disposable;
+        export function registerTextEditorCommand(command: string, handler: (textEditor: TextEditor, edit: TextEditorEdit, ...arg: any[]) => void, thisArg?: any): Disposable;
 
         /**
          * Execute the active handler for the given command and arguments.
@@ -2022,6 +2030,15 @@ declare module '@theia/plugin' {
          * Reject if a command cannot be executed.
          */
         export function executeCommand<T>(commandId: string, ...args: any[]): PromiseLike<T | undefined>;
+
+        /**
+         * Retrieve the list of all available commands. Commands starting an underscore are
+         * treated as internal commands.
+         *
+         * @param filterInternal Set `true` to not see internal commands (starting with an underscore)
+         * @return Thenable that resolves to a list of command ids.
+         */
+        export function getCommands(filterInternal?: boolean): PromiseLike<string[]>;
     }
 
     /**
@@ -3750,6 +3767,17 @@ declare module '@theia/plugin' {
      * the editor-process so that they should be always used instead of nodejs-equivalents.
      */
     export namespace workspace {
+
+        /**
+         * ~~The folder that is open in the editor. `undefined` when no folder
+         * has been opened.~~
+         *
+         * @deprecated Use [`workspaceFolders`](#workspace.workspaceFolders) instead.
+         *
+         * @readonly
+         */
+        export let rootPath: string | undefined;
+
         /**
          * List of workspace folders or `undefined` when no folder is open.
          * *Note* that the first entry corresponds to the value of `rootPath`.
