@@ -24,6 +24,7 @@
     "@theia/filesystem": "^0.3.19",
     "@theia/getting-started": "^0.3.19",
     "@theia/git": "^0.3.19",
+    "@theia/scm": "^0.3.19",
     "@theia/java": "^0.3.19",
     "@theia/java-debug": "^0.3.19",
     "@theia/json": "^0.3.19",
