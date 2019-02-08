@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2017 TypeFox and others.
+ * Copyright (C) 2019 Red Hat, Inc. and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -16,7 +16,7 @@
 
 import { ContainerModule } from 'inversify';
 import { ScmContribution } from './scm-contribution';
-import { ScmServiceImpl } from './scmService';
+import { ScmServiceImpl } from './scm-service-impl';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
 import { ScmService } from '../common/scm';
 

@@ -63,7 +63,7 @@ import { IJSONSchema, IJSONSchemaSnippet } from '@theia/core/lib/common/json-sch
 import { DebuggerDescription } from '@theia/debug/lib/common/debug-service';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { SymbolInformation } from 'vscode-languageserver-types';
-import { StatusBarCommand } from '@theia/scm/lib/common';
+import { ScmCommand } from '@theia/scm/lib/common';
 
 export interface PluginInitData {
     plugins: PluginMetadata[];
@@ -477,8 +477,8 @@ export interface SourceControlProviderFeatures {
     hasQuickDiffProvider?: boolean;
     count?: number;
     commitTemplate?: string;
-    acceptInputCommand?: StatusBarCommand;
-    statusBarCommands?: StatusBarCommand[];
+    acceptInputCommand?: ScmCommand;
+    statusBarCommands?: ScmCommand[];
 }
 
 export interface SourceControlGroupFeatures {

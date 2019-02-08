@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 Red Hat, Inc. and others.
+ * Copyright (C) 2019 Red Hat, Inc. and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -17,7 +17,7 @@
 import * as theia from '@theia/plugin';
 import { CommandRegistryExt, Plugin as InternalPlugin, PLUGIN_RPC_CONTEXT, ScmExt, ScmMain } from '../api/plugin-api';
 import { RPCProtocol } from '../api/rpc-protocol';
-import { StatusBarCommand } from '@theia/scm/lib/common/scm';
+import { ScmCommand } from '@theia/scm/lib/common';
 import { CancellationToken } from '@theia/core';
 import { UriComponents } from '../common/uri-components';
 import URI from '@theia/core/lib/common/uri';
@@ -183,10 +183,9 @@ class SourceControlImpl implements theia.SourceControl {
         this._acceptInputCommand = acceptInputCommand;
 
         if (acceptInputCommand) {
-            const command: StatusBarCommand = {
+            const command: ScmCommand = {
                 id: acceptInputCommand.id,
-                text: acceptInputCommand.label ? acceptInputCommand.label : '',
-                alignment: 1
+                text: acceptInputCommand.label ? acceptInputCommand.label : ''
             };
             this.proxy.$updateSourceControl(this.handle, { acceptInputCommand: command });
         }

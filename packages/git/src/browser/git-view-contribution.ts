@@ -26,7 +26,7 @@ import {
 } from '@theia/core';
 import {
     AbstractViewContribution, StatusBar, DiffUris, StatusBarEntry,
-    FrontendApplicationContribution, FrontendApplication, Widget, StatusBarAlignment
+    FrontendApplicationContribution, FrontendApplication, Widget
 } from '@theia/core/lib/browser';
 import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { EditorManager, EditorWidget, EditorOpenerOptions, EditorContextMenu, EDITOR_CONTEXT_MENU } from '@theia/editor/lib/browser';
@@ -37,7 +37,7 @@ import { GitQuickOpenService, GitAction } from './git-quick-open-service';
 import { GitSyncService } from './git-sync-service';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { GitPrompt } from '../common/git-prompt';
-import { ScmRepository, ScmService, StatusBarCommand } from '@theia/scm/lib/common';
+import { ScmRepository, ScmService, ScmCommand } from '@theia/scm/lib/common';
 import { GitRepositoryProvider } from './git-repository-provider';
 
 export const GIT_WIDGET_FACTORY_ID = 'git';
@@ -128,7 +128,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
 
     protected toDispose = new DisposableCollection();
 
-    private readonly onDidChangeCommandEmitterMap: Map<string, Emitter<StatusBarCommand[]>> = new Map();
+    private readonly onDidChangeCommandEmitterMap: Map<string, Emitter<ScmCommand[]>> = new Map();
     private readonly onDidChangeRepositoryEmitterMap: Map<string, Emitter<void>> = new Map();
     private dirtyRepositories: Repository[] = [];
 
@@ -176,8 +176,6 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
                         onDidChangeCommandEmitter.fire([{
                             id: GIT_COMMANDS.CHANGE_REPOSITORY.id,
                             text: `$(database) ${path.base}`,
-                            alignment: StatusBarAlignment.LEFT,
-                            priority: 102,
                             command: GIT_COMMANDS.CHANGE_REPOSITORY.id,
                             tooltip: path.toString()
                         }]);
@@ -214,8 +212,6 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
                 onDidChangeCommandEmitter.fire([{
                     id: GIT_COMMANDS.CHECKOUT.id,
                     text: `$(code-fork) ${branch}${dirty}`,
-                    alignment: StatusBarAlignment.LEFT,
-                    priority: 101,
                     command: GIT_COMMANDS.CHECKOUT.id
                 }]);
             }
@@ -255,7 +251,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
     registerScmProvider(repository: Repository): ScmRepository {
         const uri = repository.localUri;
         const disposableCollection = new DisposableCollection();
-        const onDidChangeStatusBarCommandsEmitter = new Emitter<StatusBarCommand[]>();
+        const onDidChangeStatusBarCommandsEmitter = new Emitter<ScmCommand[]>();
         const onDidChangeResourcesEmitter = new Emitter<void>();
         const onDidChangeRepositoryEmitter = new Emitter<void>();
         this.onDidChangeCommandEmitterMap.set(uri, onDidChangeStatusBarCommandsEmitter);
@@ -514,9 +510,9 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             if (onDidChangeCommandEmitter) {
                 onDidChangeCommandEmitter.fire([{
                     id: 'vcs-sync-status',
-                    alignment: StatusBarAlignment.LEFT,
-                    priority: 100,
-                    ...entry
+                    text: entry.text,
+                    tooltip: entry.tooltip,
+                    command: entry.command,
                 }]);
             }
         } else {

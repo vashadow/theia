@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 Red Hat, Inc. and others.
+ * Copyright (C) 2019 Red Hat, Inc. and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,18 +13,25 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
-import { injectable, inject } from 'inversify';
-import { FrontendApplicationContribution, StatusBar } from '@theia/core/lib/browser';
-import { ScmService, StatusBarCommand } from '../common/scm';
+import { inject, injectable } from 'inversify';
+import { FrontendApplicationContribution, StatusBar, StatusBarAlignment, StatusBarEntry } from '@theia/core/lib/browser';
+import { ScmCommand, ScmService } from '../common/scm';
 
 @injectable()
 export class ScmContribution implements FrontendApplicationContribution {
     @inject(StatusBar) protected readonly statusBar: StatusBar;
     @inject(ScmService) protected readonly scmService: ScmService;
     onStart(): void {
-        const refresh = (commands: StatusBarCommand[]) => {
+        const refresh = (commands: ScmCommand[]) => {
             commands.forEach(command => {
-                this.statusBar.setElement(command.id, command);
+                const statusBaCommand: StatusBarEntry = {
+                    text: command.text,
+                    tooltip: command.tooltip,
+                    command: command.command,
+                    alignment: StatusBarAlignment.LEFT,
+                    priority: 100
+                };
+                this.statusBar.setElement(command.id, statusBaCommand);
             });
         };
         this.scmService.onDidAddRepository(repository => {

@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 Red Hat, Inc. and others.
+ * Copyright (C) 2019 Red Hat, Inc. and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -15,7 +15,6 @@
  ********************************************************************************/
 import URI from '@theia/core/lib/common/uri';
 import { Disposable, Event } from '@theia/core/lib/common';
-import { StatusBarEntry } from '@theia/core/lib/browser';
 
 export interface ScmResourceDecorations {
     icon?: URI;
@@ -57,16 +56,19 @@ export interface ScmProvider extends Disposable {
     readonly count?: number;
     readonly commitTemplate?: string;
     readonly onDidChangeCommitTemplate?: Event<string>;
-    readonly onDidChangeStatusBarCommands?: Event<StatusBarCommand[]>;
-    readonly acceptInputCommand?: StatusBarCommand;
-    readonly statusBarCommands?: StatusBarCommand[];
+    readonly onDidChangeStatusBarCommands?: Event<ScmCommand[]>;
+    readonly acceptInputCommand?: ScmCommand;
+    readonly statusBarCommands?: ScmCommand[];
     readonly onDidChange: Event<void>;
 
     getOriginalResource(uri: URI): Promise<URI | undefined>;
 }
 
-export interface StatusBarCommand extends StatusBarEntry {
-    id: string
+export interface ScmCommand {
+    id: string;
+    text: string;
+    tooltip?: string;
+    command?: string;
 }
 
 export const enum InputValidationType {

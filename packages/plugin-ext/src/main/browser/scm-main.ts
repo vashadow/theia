@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 Red Hat, Inc. and others.
+ * Copyright (C) 2019 Red Hat, Inc. and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -29,7 +29,7 @@ import {
     ScmResourceDecorations,
     ScmResourceGroup,
     ScmService,
-    StatusBarCommand
+    ScmCommand
 } from '@theia/scm/lib/common';
 import { RPCProtocol } from '../../api/rpc-protocol';
 import { interfaces } from 'inversify';
@@ -128,7 +128,7 @@ class ScmProviderImpl implements ScmProvider {
     private onDidChangeEmitter = new Emitter<void>();
     private onDidChangeResourcesEmitter = new Emitter<void>();
     private onDidChangeCommitTemplateEmitter = new Emitter<string>();
-    private onDidChangeStatusBarCommandsEmitter = new Emitter<StatusBarCommand[]>();
+    private onDidChangeStatusBarCommandsEmitter = new Emitter<ScmCommand[]>();
     private features: SourceControlProviderFeatures = {};
     private groupsMap: Map<number, ScmResourceGroup> = new Map();
     private disposableCollection: DisposableCollection = new DisposableCollection();
@@ -175,11 +175,11 @@ class ScmProviderImpl implements ScmProvider {
         return this.features.commitTemplate;
     }
 
-    get acceptInputCommand(): StatusBarCommand | undefined {
+    get acceptInputCommand(): ScmCommand | undefined {
         return this.features.acceptInputCommand;
     }
 
-    get statusBarCommands(): StatusBarCommand[] | undefined {
+    get statusBarCommands(): ScmCommand[] | undefined {
         return this.features.statusBarCommands;
     }
 
@@ -191,7 +191,7 @@ class ScmProviderImpl implements ScmProvider {
         return this.onDidChangeCommitTemplateEmitter.event;
     }
 
-    get onDidChangeStatusBarCommands(): Event<StatusBarCommand[]> {
+    get onDidChangeStatusBarCommands(): Event<ScmCommand[]> {
         return this.onDidChangeStatusBarCommandsEmitter.event;
     }
 
