@@ -30,7 +30,7 @@ import {
     ScmResourceGroup,
     ScmService,
     ScmCommand
-} from '@theia/scm/lib/common';
+} from '@theia/scm/lib/browser';
 import { RPCProtocol } from '../../api/rpc-protocol';
 import { interfaces } from 'inversify';
 import { CancellationToken, DisposableCollection, Emitter, Event } from '@theia/core';

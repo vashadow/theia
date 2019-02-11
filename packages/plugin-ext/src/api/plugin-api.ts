@@ -62,7 +62,7 @@ import { IJSONSchema, IJSONSchemaSnippet } from '@theia/core/lib/common/json-sch
 import { DebuggerDescription } from '@theia/debug/lib/common/debug-service';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { SymbolInformation } from 'vscode-languageserver-types';
-import { ScmCommand } from '@theia/scm/lib/common';
+import { ScmCommand } from '@theia/scm/lib/browser';
 
 export interface PluginInitData {
     plugins: PluginMetadata[];

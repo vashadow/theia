@@ -16,9 +16,8 @@
 
 import { ContainerModule } from 'inversify';
 import { ScmContribution } from './scm-contribution';
-import { ScmServiceImpl } from './scm-service-impl';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
-import { ScmService } from '../common/scm';
+import { ScmService, ScmServiceImpl } from './scm-service';
 
 export default new ContainerModule(bind => {
     bind(ScmContribution).toSelf().inSingletonScope();

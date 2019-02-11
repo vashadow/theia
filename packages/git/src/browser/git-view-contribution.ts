@@ -37,7 +37,7 @@ import { GitQuickOpenService, GitAction } from './git-quick-open-service';
 import { GitSyncService } from './git-sync-service';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { GitPrompt } from '../common/git-prompt';
-import { ScmRepository, ScmService, ScmCommand } from '@theia/scm/lib/common';
+import { ScmRepository, ScmService, ScmCommand } from '@theia/scm/lib/browser';
 import { GitRepositoryProvider } from './git-repository-provider';
 
 export const GIT_WIDGET_FACTORY_ID = 'git';
@@ -124,7 +124,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
     static GIT_REPOSITORY_STATUS = 'git-repository-status';
     static GIT_SYNC_STATUS = 'git-sync-status';
 
-    static ID_HANDLE = 0;
+    private static ID_HANDLE = 0;
 
     protected toDispose = new DisposableCollection();
 
@@ -167,7 +167,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
                 if (this.hasMultipleRepositories()) {
                     const path = new URI(repository.localUri).path;
                     this.scmService.selectedRepositories.forEach(scmRepo => scmRepo.setSelected(false));
-                        const scmRepository = this.scmService.repositories.find(scmRepo => scmRepo.provider.rootUri === repository.localUri);
+                    const scmRepository = this.scmService.repositories.find(scmRepo => scmRepo.provider.rootUri === repository.localUri);
                     if (scmRepository) {
                         scmRepository.setSelected(true);
                     }
@@ -228,7 +228,8 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
         );
     }
 
-    checkNewOrRemovedRepositories() {
+    /** Detect and handle added or removed repositories. */
+    private checkNewOrRemovedRepositories() {
         const added =
             this.repositoryProvider
                 .allRepositories
@@ -248,7 +249,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
         this.dirtyRepositories = this.repositoryProvider.allRepositories;
     }
 
-    registerScmProvider(repository: Repository): ScmRepository {
+    private registerScmProvider(repository: Repository): ScmRepository {
         const uri = repository.localUri;
         const disposableCollection = new DisposableCollection();
         const onDidChangeStatusBarCommandsEmitter = new Emitter<ScmCommand[]>();

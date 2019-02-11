@@ -13,15 +13,118 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
-import {
-    InputValidator,
-    ScmInput,
-    ScmProvider,
-    ScmRepository,
-    ScmService
-} from '../common/scm';
-import { Disposable, Emitter, Event } from '@theia/core/lib/common';
+import { Disposable, DisposableCollection, Emitter, Event } from '@theia/core/lib/common';
 import { injectable } from 'inversify';
+import URI from '@theia/core/lib/common/uri';
+
+export const ScmService = Symbol('ScmService');
+export interface ScmService extends Disposable {
+
+    readonly onDidAddRepository: Event<ScmRepository>;
+    readonly onDidRemoveRepository: Event<ScmRepository>;
+
+    readonly repositories: ScmRepository[];
+    readonly selectedRepositories: ScmRepository[];
+    readonly onDidChangeSelectedRepositories: Event<ScmRepository[]>;
+
+    registerScmProvider(provider: ScmProvider): ScmRepository;
+}
+
+export interface ScmProvider extends Disposable {
+    readonly label: string;
+    readonly id: string;
+    readonly contextValue: string;
+
+    readonly groups: ScmResourceGroup[];
+
+    readonly onDidChangeResources: Event<void>;
+
+    readonly rootUri?: string;
+    readonly count?: number;
+    readonly commitTemplate?: string;
+    readonly onDidChangeCommitTemplate?: Event<string>;
+    readonly onDidChangeStatusBarCommands?: Event<ScmCommand[]>;
+    readonly acceptInputCommand?: ScmCommand;
+    readonly statusBarCommands?: ScmCommand[];
+    readonly onDidChange: Event<void>;
+
+    getOriginalResource(uri: URI): Promise<URI | undefined>;
+}
+
+export interface ScmResourceGroup {
+    readonly resources: ScmResource[];
+    readonly provider: ScmProvider;
+    readonly label: string;
+    readonly id: string;
+    readonly hideWhenEmpty: boolean | undefined;
+    readonly onDidChange: Event<void>;
+}
+
+export interface ScmResource {
+    readonly resourceGroup: ScmResourceGroup;
+    readonly sourceUri: URI;
+    readonly decorations?: ScmResourceDecorations;
+
+    open(): Promise<void>;
+}
+
+export interface ScmResourceDecorations {
+    icon?: URI;
+    tooltip?: string;
+    strikeThrough?: boolean;
+    faded?: boolean;
+
+    source?: string;
+    letter?: string;
+}
+
+export interface ScmCommand {
+    id: string;
+    text: string;
+    tooltip?: string;
+    command?: string;
+}
+
+export const enum InputValidationType {
+    Error = 0,
+    Warning = 1,
+    Information = 2
+}
+
+export interface InputValidation {
+    message: string;
+    type: InputValidationType;
+}
+
+export interface InputValidator {
+    (value: string, cursorPosition: number): Promise<InputValidation | undefined>;
+}
+
+export interface ScmInput {
+    value: string;
+    readonly onDidChange: Event<string>;
+
+    placeholder: string;
+    readonly onDidChangePlaceholder: Event<string>;
+
+    validateInput: InputValidator;
+    readonly onDidChangeValidateInput: Event<void>;
+
+    visible: boolean;
+    readonly onDidChangeVisibility: Event<boolean>;
+}
+
+export interface ScmRepository extends Disposable {
+    readonly onDidFocus: Event<void>;
+    readonly selected: boolean;
+    readonly onDidChangeSelection: Event<boolean>;
+    readonly provider: ScmProvider;
+    readonly input: ScmInput;
+
+    focus(): void;
+
+    setSelected(selected: boolean): void;
+}
 
 @injectable()
 export class ScmServiceImpl implements ScmService {
@@ -29,11 +132,18 @@ export class ScmServiceImpl implements ScmService {
     private _repositories: ScmRepository[] = [];
     private _selectedRepositories: ScmRepository[] = [];
 
+    private disposableCollection: DisposableCollection = new DisposableCollection();
     private onDidChangeSelectedRepositoriesEmitter = new Emitter<ScmRepository[]>();
     private onDidAddProviderEmitter = new Emitter<ScmRepository>();
     private onDidRemoveProviderEmitter = new Emitter<ScmRepository>();
 
     readonly onDidChangeSelectedRepositories: Event<ScmRepository[]> = this.onDidChangeSelectedRepositoriesEmitter.event;
+
+    constructor() {
+        this.disposableCollection.push(this.onDidChangeSelectedRepositoriesEmitter);
+        this.disposableCollection.push(this.onDidAddProviderEmitter);
+        this.disposableCollection.push(this.onDidRemoveProviderEmitter);
+    }
 
     get repositories(): ScmRepository[] {
         return [...this._repositories];
@@ -47,7 +157,9 @@ export class ScmServiceImpl implements ScmService {
         return this.onDidAddProviderEmitter.event;
     }
 
-    get onDidRemoveRepository(): Event<ScmRepository> { return this.onDidRemoveProviderEmitter.event; }
+    get onDidRemoveRepository(): Event<ScmRepository> {
+        return this.onDidRemoveProviderEmitter.event;
+    }
 
     registerScmProvider(provider: ScmProvider): ScmRepository {
 
@@ -57,10 +169,7 @@ export class ScmServiceImpl implements ScmService {
 
         this.providerIds.add(provider.id);
 
-        function toDisposable(fn: () => void): Disposable {
-            return { dispose() { fn(); } };
-        }
-        const disposable: Disposable = toDisposable(() => {
+        const disposable: Disposable = Disposable.create(() => {
             const index = this._repositories.indexOf(repository);
             if (index < 0) {
                 return;
@@ -72,7 +181,7 @@ export class ScmServiceImpl implements ScmService {
             this.onDidChangeSelection();
         });
 
-        const repository = new SCMRepositoryImpl(provider, disposable);
+        const repository = new ScmRepositoryImpl(provider, disposable);
         const selectedDisposable = repository.onDidChangeSelection(this.onDidChangeSelection, this);
 
         this._repositories.push(repository);
@@ -90,9 +199,13 @@ export class ScmServiceImpl implements ScmService {
         this._selectedRepositories = this._repositories.filter(r => r.selected);
         this.onDidChangeSelectedRepositoriesEmitter.fire(this.selectedRepositories);
     }
+
+    dispose(): void {
+        this.disposableCollection.dispose();
+    }
 }
 
-class SCMRepositoryImpl implements ScmRepository {
+class ScmRepositoryImpl implements ScmRepository {
 
     private _onDidFocus = new Emitter<void>();
     readonly onDidFocus: Event<void> = this._onDidFocus.event;
@@ -105,7 +218,7 @@ class SCMRepositoryImpl implements ScmRepository {
     private _onDidChangeSelection = new Emitter<boolean>();
     readonly onDidChangeSelection: Event<boolean> = this._onDidChangeSelection.event;
 
-    readonly input: ScmInput = new SCMInputImpl();
+    readonly input: ScmInput = new ScmInputImpl();
 
     constructor(
         public readonly provider: ScmProvider,
@@ -127,7 +240,7 @@ class SCMRepositoryImpl implements ScmRepository {
     }
 }
 
-class SCMInputImpl implements ScmInput {
+class ScmInputImpl implements ScmInput {
 
     private _value = '';
 

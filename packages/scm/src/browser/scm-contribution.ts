@@ -14,8 +14,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 import { inject, injectable } from 'inversify';
-import { FrontendApplicationContribution, StatusBar, StatusBarAlignment, StatusBarEntry } from '@theia/core/lib/browser';
-import { ScmCommand, ScmService } from '../common/scm';
+import {
+    FrontendApplication,
+    FrontendApplicationContribution,
+    StatusBar,
+    StatusBarAlignment,
+    StatusBarEntry
+} from '@theia/core/lib/browser';
+import { ScmCommand, ScmService } from './scm-service';
 
 @injectable()
 export class ScmContribution implements FrontendApplicationContribution {
@@ -40,5 +46,9 @@ export class ScmContribution implements FrontendApplicationContribution {
                 onDidChangeStatusBarCommands(commands => refresh(commands));
             }
         });
+    }
+
+    onStop(app: FrontendApplication): void {
+        this.scmService.dispose();
     }
 }

@@ -17,7 +17,6 @@
 import * as theia from '@theia/plugin';
 import { CommandRegistryExt, Plugin as InternalPlugin, PLUGIN_RPC_CONTEXT, ScmExt, ScmMain } from '../api/plugin-api';
 import { RPCProtocol } from '../api/rpc-protocol';
-import { ScmCommand } from '@theia/scm/lib/common';
 import { CancellationToken } from '@theia/core';
 import { UriComponents } from '../common/uri-components';
 import URI from '@theia/core/lib/common/uri';
@@ -183,7 +182,7 @@ class SourceControlImpl implements theia.SourceControl {
         this._acceptInputCommand = acceptInputCommand;
 
         if (acceptInputCommand) {
-            const command: ScmCommand = {
+            const command = {
                 id: acceptInputCommand.id,
                 text: acceptInputCommand.label ? acceptInputCommand.label : ''
             };
