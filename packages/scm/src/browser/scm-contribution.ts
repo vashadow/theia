@@ -15,6 +15,7 @@
  ********************************************************************************/
 import { inject, injectable } from 'inversify';
 import {
+    AbstractViewContribution,
     FrontendApplication,
     FrontendApplicationContribution,
     StatusBar,
@@ -22,11 +23,28 @@ import {
     StatusBarEntry
 } from '@theia/core/lib/browser';
 import { ScmCommand, ScmService } from './scm-service';
+import { ScmWidget } from '../browser/scm-widget';
+
+export const SCM_WIDGET_FACTORY_ID = 'scm';
 
 @injectable()
-export class ScmContribution implements FrontendApplicationContribution {
+export class ScmContribution extends AbstractViewContribution<ScmWidget> implements FrontendApplicationContribution {
     @inject(StatusBar) protected readonly statusBar: StatusBar;
     @inject(ScmService) protected readonly scmService: ScmService;
+
+    constructor() {
+        super({
+            widgetId: SCM_WIDGET_FACTORY_ID,
+            widgetName: 'Scm',
+            defaultWidgetOptions: {
+                area: 'left',
+                rank: 300
+            },
+            toggleCommandId: 'scmView:toggle',
+            toggleKeybinding: 'ctrlcmd+shift+q'
+        });
+    }
+
     onStart(): void {
         const refresh = (commands: ScmCommand[]) => {
             commands.forEach(command => {
