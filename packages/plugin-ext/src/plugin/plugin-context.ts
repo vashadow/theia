@@ -120,6 +120,7 @@ import { ConnectionExtImpl } from './connection-ext';
 import { WebviewsExtImpl } from './webviews';
 import { TasksExtImpl } from './tasks/tasks';
 import { DebugExtImpl } from './node/debug/debug';
+import { ScmExtImpl } from './scm';
 
 export function createAPIFactory(
     rpc: RPCProtocol,
@@ -149,6 +150,7 @@ export function createAPIFactory(
     const tasksExt = rpc.set(MAIN_RPC_CONTEXT.TASKS_EXT, new TasksExtImpl(rpc));
     const connectionExt = rpc.set(MAIN_RPC_CONTEXT.CONNECTION_EXT, new ConnectionExtImpl(rpc));
     const languagesContributionExt = rpc.set(MAIN_RPC_CONTEXT.LANGUAGES_CONTRIBUTION_EXT, new LanguagesContributionExtImpl(rpc, connectionExt));
+    const scmExt = rpc.set(MAIN_RPC_CONTEXT.SCM_EXT, new ScmExtImpl(rpc, commandRegistry));
     rpc.set(MAIN_RPC_CONTEXT.DEBUG_EXT, debugExt);
 
     return function (plugin: InternalPlugin): typeof theia {
@@ -628,6 +630,20 @@ export function createAPIFactory(
             }
         };
 
+        const scm: typeof theia.scm = {
+            get inputBox(): theia.SourceControlInputBox {
+                const inputBox = scmExt.getLastInputBox(plugin);
+                if (inputBox) {
+                    return inputBox;
+                } else {
+                    throw new Error('Input box not found!');
+                }
+            },
+            createSourceControl(id: string, label: string, rootUri?: Uri): theia.SourceControl {
+                return scmExt.createSourceControl(plugin, id, label, rootUri);
+            }
+        };
+
         return <typeof theia>{
             version: require('../../package.json').version,
             commands,
@@ -639,6 +655,7 @@ export function createAPIFactory(
             plugins,
             debug,
             tasks,
+            scm,
             // Types
             StatusBarAlignment: StatusBarAlignment,
             Disposable: Disposable,
