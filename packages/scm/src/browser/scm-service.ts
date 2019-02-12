@@ -85,19 +85,34 @@ export interface ScmCommand {
     command?: string;
 }
 
-export const enum InputValidationType {
-    Error = 0,
-    Warning = 1,
-    Information = 2
-}
-
 export interface InputValidation {
     message: string;
-    type: InputValidationType;
+    type: 'info' | 'success' | 'warning' | 'error';
 }
 
 export interface InputValidator {
-    (value: string, cursorPosition: number): Promise<InputValidation | undefined>;
+    (value: string): Promise<InputValidation | undefined>;
+}
+
+export namespace InputValidator {
+    /**
+     * Type for the validation result with a status and a corresponding message.
+     */
+    export type Result = Readonly<{ message: string, type: 'info' | 'success' | 'warning' | 'error' }>;
+
+    export namespace Result {
+
+        /**
+         * `true` if the `message` and the `status` properties are the same on both `left` and `right`. Or both arguments are `undefined`. Otherwise, `false`.
+         */
+        export function equal(left: Result | undefined, right: Result | undefined): boolean {
+            if (left && right) {
+                return left.message === right.message && left.type === right.type;
+            }
+            return left === right;
+        }
+
+    }
 }
 
 export interface ScmInput {

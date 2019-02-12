@@ -13,32 +13,45 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
-import { injectable, inject } from 'inversify';
+import {inject, injectable} from 'inversify';
 import URI from '@theia/core/lib/common/uri';
 import {
-    DisposableCollection,
-    CommandRegistry,
-    MenuModelRegistry,
-    CommandContribution,
-    MenuContribution,
     Command,
-    Emitter
+    CommandContribution,
+    CommandRegistry,
+    DisposableCollection,
+    Emitter,
+    MenuContribution,
+    MenuModelRegistry
 } from '@theia/core';
 import {
-    AbstractViewContribution, StatusBar, DiffUris, StatusBarEntry,
-    FrontendApplicationContribution, FrontendApplication, Widget
+    AbstractViewContribution,
+    DiffUris,
+    FrontendApplication,
+    FrontendApplicationContribution,
+    StatusBar,
+    StatusBarEntry,
+    Widget
 } from '@theia/core/lib/browser';
-import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
-import { EditorManager, EditorWidget, EditorOpenerOptions, EditorContextMenu, EDITOR_CONTEXT_MENU } from '@theia/editor/lib/browser';
-import { GitFileChange, GitFileStatus, Repository } from '../common';
-import { GitWidget } from './git-widget';
-import { GitRepositoryTracker } from './git-repository-tracker';
-import { GitQuickOpenService, GitAction } from './git-quick-open-service';
-import { GitSyncService } from './git-sync-service';
-import { WorkspaceService } from '@theia/workspace/lib/browser';
-import { GitPrompt } from '../common/git-prompt';
-import { ScmRepository, ScmService, ScmCommand } from '@theia/scm/lib/browser';
-import { GitRepositoryProvider } from './git-repository-provider';
+import {TabBarToolbarContribution, TabBarToolbarRegistry} from '@theia/core/lib/browser/shell/tab-bar-toolbar';
+import {
+    EDITOR_CONTEXT_MENU,
+    EditorContextMenu,
+    EditorManager,
+    EditorOpenerOptions,
+    EditorWidget
+} from '@theia/editor/lib/browser';
+import {Git, GitFileChange, GitFileStatus, Repository} from '../common';
+import {GitWidget} from './git-widget';
+import {GitRepositoryTracker} from './git-repository-tracker';
+import {GitAction, GitQuickOpenService} from './git-quick-open-service';
+import {GitSyncService} from './git-sync-service';
+import {WorkspaceService} from '@theia/workspace/lib/browser';
+import {GitPrompt} from '../common/git-prompt';
+import {ScmCommand,  ScmRepository, ScmService} from '@theia/scm/lib/browser';
+import {GitRepositoryProvider} from './git-repository-provider';
+import {GitCommitMessageValidator} from '../browser/git-commit-message-validator';
+import {GitErrorHandler} from '../browser/git-error-handler';
 
 export const GIT_WIDGET_FACTORY_ID = 'git';
 
@@ -141,6 +154,10 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
     @inject(GitPrompt) protected readonly prompt: GitPrompt;
     @inject(ScmService) protected readonly scmService: ScmService;
     @inject(GitRepositoryProvider) protected readonly repositoryProvider: GitRepositoryProvider;
+    @inject(GitCommitMessageValidator) protected readonly commitMessageValidator: GitCommitMessageValidator;
+    @inject(CommandRegistry) protected readonly commandRegistry: CommandRegistry;
+    @inject(Git) protected readonly git: Git;
+    @inject(GitErrorHandler)protected readonly gitErrorHandler: GitErrorHandler;
 
     constructor() {
         super({
@@ -215,6 +232,10 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
                     command: GIT_COMMANDS.CHECKOUT.id
                 }]);
             }
+            // const scmRepository = this.scmService.repositories.find(repo => repo.provider.rootUri === event.source.localUri);
+            // if (scmRepository) {
+            //     scmRepository.provider.groups = [{resources: [], provider: scmRepository.provider, label: 'Changes'}]
+            // }
             const onDidChangeRepositoryEmitter = this.onDidChangeRepositoryEmitterMap.get(event.source.localUri);
             if (onDidChangeRepositoryEmitter) {
                 onDidChangeRepositoryEmitter.fire(undefined);
@@ -264,7 +285,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             this.onDidChangeCommandEmitterMap.delete(uri);
             this.onDidChangeRepositoryEmitterMap.delete(uri);
         };
-        return this.scmService.registerScmProvider({
+        const repo =  this.scmService.registerScmProvider({
             label: 'Git',
             id: `git_provider_${ GitViewContribution.ID_HANDLE ++ }`,
             contextValue: 'git',
@@ -272,6 +293,12 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             onDidChangeStatusBarCommands: onDidChangeStatusBarCommandsEmitter.event,
             onDidChangeResources: onDidChangeRepositoryEmitter.event,
             rootUri: uri,
+            acceptInputCommand: {
+                id: 'git-command-id',
+                tooltip: 'tooltip',
+                text: 'text',
+                command: 'command'
+            },
             groups: [],
             async getOriginalResource() {
                 return undefined;
@@ -280,6 +307,41 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
                 dispose();
             }
         });
+        const commit = (scmRepository: ScmRepository, message: string) => {
+            const localUri = scmRepository.provider.rootUri;
+            if (localUri) {
+                this.doCommit({ localUri }, message);
+            }
+        };
+        this.commandRegistry.registerCommand({ id: 'git-command-id' },
+            {
+            // tslint:disable-next-line:no-any
+            execute(...args): any {
+                if (args.length > 1) {
+                    commit(args[0], args[1]);
+                }
+            }
+        });
+        repo.input.placeholder = 'Commit Message';
+        repo.input.validateInput = async input => {
+            const validate = await this.commitMessageValidator.validate(input);
+            if (validate) {
+                const { message, status } = validate;
+                return { message, type: status };
+            }
+        };
+        return repo;
+    }
+
+    async doCommit(repository: Repository, message: string, options?: 'amend' | 'sign-off') {
+        try {
+            // We can make sure, repository exists, otherwise we would not have this button.
+            const signOff = options === 'sign-off';
+            const amend = options === 'amend';
+            await this.git.commit(repository, message, { signOff, amend });
+        } catch (error) {
+            this.gitErrorHandler.handleError(error);
+        }
     }
 
     registerMenus(menus: MenuModelRegistry): void {

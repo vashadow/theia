@@ -20,6 +20,8 @@ import { bindViewContribution, FrontendApplicationContribution, WidgetFactory } 
 import { ScmService, ScmServiceImpl } from './scm-service';
 import { ScmWidget } from '../browser/scm-widget';
 
+import '../../src/browser/style/index.css';
+
 export default new ContainerModule(bind => {
     bind(ScmService).to(ScmServiceImpl).inSingletonScope();
 
