@@ -63,12 +63,12 @@
     background: var(--theia-icon-open-file) no-repeat center center;
 }
 
-#theia-scmContainer .gitItem .itemButtonsContainer .buttons {
+#theia-scmContainer .scmItem .itemButtonsContainer .buttons {
     display: none;
     margin: 0 3px;
 }
 
-#theia-scmContainer .gitItem:hover .itemButtonsContainer .buttons {
+#theia-scmContainer .scmItem:hover .itemButtonsContainer .buttons {
     display: flex;
 }
 
@@ -214,4 +214,66 @@
 
 .no-select:focus {
     outline: none;
+}
+
+.theia-scm .scmItem {
+    margin: 1px 0 1px 3px;
+    padding: 2px;
+    font-size: var(--theia-ui-font-size1);
+    display: flex;
+    justify-content: space-between;
+}
+
+.theia-scm .scmItem .file-icon {
+    display: initial;
+}
+
+.theia-scm .scmItem:hover {
+    background-color: var(--theia-layout-color2);
+    cursor: pointer;
+}
+
+.theia-scm .scmItem .path {
+    color: var(--theia-ui-font-color2);
+    font-size: var(--theia-ui-font-size0);
+    margin-left: 3px;
+}
+
+.theia-scm .scmItem .itemButtonsContainer {
+    display: flex;
+    justify-content: flex-end;
+    margin-left: 3px;
+}
+
+.theia-scm .scmItem .status {
+    padding: 2px 4px;
+    font-size: var(--theia-ui-font-size0);
+}
+
+.theia-scm .scmItem .status.new {
+    color: var(--theia-success-color0);
+}
+
+.theia-scm .scmItem .status.new.staged {
+    color: var(--theia-success-color0);
+}
+
+.theia-scm .scmItem .status.modified {
+    color: var(--theia-brand-color0);
+}
+
+.theia-scm .scmItem .status.deleted {
+    color: var(--theia-warn-color0);
+}
+
+.theia-scm .scmItem .status.renamed {
+    color: var(--theia-brand-color0);
+}
+
+.theia-scm .scmItem .status.conflicted {
+    color: var(--theia-error-color0);
+}
+
+.theia-scm .scmItem .status.copied {
+    color: var(--theia-brand-color0);
 }

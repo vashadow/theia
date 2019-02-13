@@ -61,7 +61,7 @@ export interface ScmResourceGroup {
 }
 
 export interface ScmResource {
-    readonly resourceGroup: ScmResourceGroup;
+    // readonly resourceGroup: ScmResourceGroup;
     readonly sourceUri: URI;
     readonly decorations?: ScmResourceDecorations;
 

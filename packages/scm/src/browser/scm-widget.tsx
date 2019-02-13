@@ -17,8 +17,9 @@ import { injectable, inject, postConstruct } from 'inversify';
 import {ReactWidget} from '@theia/core/lib/browser';
 import * as React from 'react';
 import { AlertMessage } from '@theia/core/lib/browser/widgets/alert-message';
-import {InputValidator, ScmInput, ScmRepository, ScmService} from './scm-service';
+import {InputValidator, ScmInput, ScmRepository, ScmResourceGroup, ScmService} from './scm-service';
 import {CommandRegistry} from '@theia/core';
+import {ScmResource} from '../browser';
 
 @injectable()
 export class ScmWidget extends ReactWidget {
@@ -246,109 +247,65 @@ export namespace ScmWidget {
 
 export namespace ScmItem {
     export interface Props {
-        // change: GitFileChangeNode
-        // repository: Repository
-        // openChange: (change: GitFileChange, options?: EditorOpenerOptions) => Promise<EditorWidget | undefined>
-        // selectChange: (change: GitFileChange) => void
-        // unstage: (repository: Repository, change: GitFileChange) => void
-        // stage: (repository: Repository, change: GitFileChange) => void
-        // discard: (repository: Repository, change: GitFileChange) => void
-        // openFile: (uri: URI) => void
+        repositoryUri: string
+        uri: string
+        icon: string
     }
 }
 
-// export class ScmItem extends React.Component<ScmItem.Props> {
-//
-//     protected readonly openChange = () => this.props.openChange(this.props.change, { mode: 'reveal' });
-//     protected readonly selectChange = () => this.props.selectChange(this.props.change);
-//     protected readonly doGitAction = (action: 'stage' | 'unstage' | 'discard') => this.props[action](this.props.repository, this.props.change);
-//     protected readonly doOpenFile = () => this.props.openFile(new URI(this.props.change.uri));
-//
-//     render() {
-//         const { change } = this.props;
-//         return <div className={`gitItem ${GitWidget.Styles.NO_SELECT}${change.selected ? ' ' + SELECTED_CLASS : ''}`}>
-//             <div className='noWrapInfo' onDoubleClick={this.openChange} onClick={this.selectChange}>
-//                 <span className={change.icon + ' file-icon'}></span>
-//                 <span className='name'>{change.label + ' '}</span>
-//                 <span className='path'>{change.description}</span>
-//             </div>
-//             <div className='itemButtonsContainer'>
-//                 {this.renderGitItemButtons()}
-//                 <div title={GitFileStatus.toString(change.status, change.staged)}
-//                      className={`status ${change.staged ? 'staged ' : ''} ${GitFileStatus[change.status].toLowerCase()}`}>
-//                     {GitFileStatus.toAbbreviation(change.status, change.staged)}
-//                 </div>
-//             </div>
-//         </div>;
-//     }
-//
-//     protected renderGitItemButtons(): React.ReactNode {
-//         return <div className='buttons'>
-//             <a className='toolbar-button' title='Open File' onClick={() => this.doOpenFile()}>
-//                 <i className='open-file' />
-//             </a>
-//             {
-//                 this.props.change.staged ?
-//                     <a className='toolbar-button' title='Unstage Changes' onClick={() => this.doGitAction('unstage')}>
-//                         <i className='fa fa-minus' />
-//                     </a> :
-//                     <React.Fragment>
-//                         <a className='toolbar-button' title='Discard Changes' onClick={() => this.doGitAction('discard')}>
-//                             <i className='fa fa-undo' />
-//                         </a>
-//                         <a className='toolbar-button' title='Stage Changes' onClick={() => this.doGitAction('stage')}>
-//                             <i className='fa fa-plus' />
-//                         </a>
-//                     </React.Fragment>
-//             }
-//         </div>;
-//     }
-// }
+class ScmItem extends React.Component<ScmItem.Props> {
+    render() {
+        const { uri, repositoryUri, icon } = this.props;
+        return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}`}>
+            <div className='noWrapInfo'>
+                <span className={icon + ' file-icon'}></span>
+                <span className='name'>{uri.substring(uri.lastIndexOf('/') + 1) + ' '}</span>
+                <span className='path'>{uri.substring(uri.lastIndexOf(repositoryUri) + repositoryUri.length + 1, uri.lastIndexOf('/'))}</span>
+            </div>
+        </div>;
+    }
+}
 
 export namespace ScmGroupContainer {
     export interface Props {
         id: string
-        repository: ScmRepository | undefined
-        // openChange: (change: GitFileChange, options?: EditorOpenerOptions) => Promise<EditorWidget | undefined>
-        // selectChange: (change: GitFileChange) => void
-        // unstage: (repository: Repository, change: GitFileChange) => void
-        // unstageAll: (repository: Repository, change: GitFileChange[]) => void
-        // stage: (repository: Repository, change: GitFileChange) => void
-        // stageAll: (repository: Repository, change: GitFileChange[]) => void
-        // discard: (repository: Repository, change: GitFileChange) => void
-        // discardAll: () => void
-        // openFile: (uri: URI) => void
-        // mergeChanges: GitFileChangeNode[]
-        // stagedChanges: GitFileChangeNode[]
-        // unstagedChanges: GitFileChangeNode[]
-        // addGitListKeyListeners: (id: string) => void
-        // onFocus: (e: React.FocusEvent) => void
+        repository: ScmRepository
     }
 }
 
-export class ScmGroupContainer extends React.Component<ScmGroupContainer.Props> {
+class ScmGroupContainer extends React.Component<ScmGroupContainer.Props> {
     render() {
         return (
             <div
                 className={ScmWidget.Styles.CHANGES_CONTAINER}
                 id={this.props.id}>
-                {this.renderMergeChanges(this.props.repository) || ''}
+                {this.props.repository.provider.groups.map(group => this.renderGroup(group))}
             </div>
         );
     }
+    private renderGroup(group: ScmResourceGroup): React.ReactNode {
+        return <div key={`${group.id}`}>
+            <div className='theia-header git-theia-header' key={group.id}>
+                {`${group.label}`}
+                {this.renderChangeCount(group.resources.length)}
+            </div>
+            <div>{group.resources.map(resource => this.renderScmItem(resource, group.provider.rootUri))}</div>
+        </div>;
+    }
 
-    protected renderMergeChanges(repository: ScmRepository | undefined): React.ReactNode | undefined {
-        if (repository) {
-            return <div id='mergeChanges' className='changesContainer'>
-                <div className='theia-header git-theia-header'>
-                    {/*{`${repository.provider.groups[0].label}`}*/}
-                    {/*{this.renderChangeCount(this.props.mergeChanges.length)}*/}
-                    {/*{this.renderChangeListButtons([GitBatchAction.STAGE_ALL])}*/}
-                </div>
-                {/*{this.props.mergeChanges.map(change => this.renderGitItem(change, repository))}*/}
+    protected renderChangeCount(changes: number | undefined): React.ReactNode {
+        if (changes) {
+            return <div className='notification-count-container git-change-count'>
+                <span className='notification-count'>{changes}</span>
             </div>;
-        } else {
-            return undefined;
         }
+    }
+
+    protected renderScmItem(resource: ScmResource, repoUri: string | undefined): React.ReactNode {
+        return <ScmItem key={`${resource.sourceUri}`}
+                        uri={`${resource.sourceUri}`}
+                        icon={`${(resource.decorations && resource.decorations.icon) ? resource.decorations.icon : ''}`}
+                        repositoryUri={`${repoUri}`}
+        />;
     }
 }
