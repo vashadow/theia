@@ -29,7 +29,8 @@ import {
     AbstractViewContribution,
     DiffUris,
     FrontendApplication,
-    FrontendApplicationContribution, LabelProvider,
+    FrontendApplicationContribution,
+    LabelProvider,
     StatusBar,
     StatusBarEntry,
     Widget
@@ -140,7 +141,7 @@ export namespace GIT_COMMANDS {
 @injectable()
 export class GitViewContribution extends AbstractViewContribution<GitWidget>
     implements FrontendApplicationContribution, CommandContribution, MenuContribution, TabBarToolbarContribution {
-
+    private static GROUP_ID = 0;
     static GIT_SELECTED_REPOSITORY = 'git-selected-repository';
     static GIT_REPOSITORY_STATUS = 'git-repository-status';
     static GIT_SYNC_STATUS = 'git-sync-status';
@@ -233,18 +234,16 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             const scmProvider = this.scmProviders.find(provider => provider.rootUri === event.source.localUri);
             if (scmProvider) {
                 const provider = (scmProvider as ScmProviderImpl);
-                provider.groups = this.getGroups(status, provider);
-                provider.fireChangeStatusBarCommands([{
-                    id: GIT_COMMANDS.CHECKOUT.id,
-                    text: `$(code-fork) ${branch}${dirty}`,
-                    command: GIT_COMMANDS.CHECKOUT.id
-                }]);
-                provider.fireChange();
+                this.getGroups(status, provider).then(groups => {
+                    provider.groups = groups;
+                    provider.fireChangeStatusBarCommands([{
+                        id: GIT_COMMANDS.CHECKOUT.id,
+                        text: `$(code-fork) ${branch}${dirty}`,
+                        command: GIT_COMMANDS.CHECKOUT.id
+                    }]);
+                    provider.fireChangeResources();
+                });
             }
-            // const scmRepository = this.scmService.repositories.find(repo => repo.provider.rootUri === event.source.localUri);
-            // if (scmRepository) {
-            //     scmRepository.provider.groups = [{resources: [], provider: scmRepository.provider, label: 'Changes'}]
-            // }
             this.updateSyncStatusBarEntry(event.source.localUri);
         });
         this.syncService.onDidChange(() => this.updateSyncStatusBarEntry(
@@ -254,7 +253,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
         );
     }
 
-    protected getGroups(status: WorkingDirectoryStatus | undefined, provider: ScmProvider): ScmResourceGroup[] {
+    protected async getGroups(status: WorkingDirectoryStatus | undefined, provider: ScmProvider): Promise<ScmResourceGroup[]> {
         const groups: ScmResourceGroup[] = [];
         const stagedChanges = [];
         const unstagedChanges = [];
@@ -275,33 +274,48 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             }
         }
         if (stagedChanges.length > 0) {
-            groups.push(this.getGroup(provider, stagedChanges));
+            groups.push(await this.getGroup('Staged changes', provider, stagedChanges));
         }
         if (unstagedChanges.length > 0) {
-            groups.push(this.getGroup(provider, unstagedChanges));
+            groups.push(await this.getGroup('Changes', provider, unstagedChanges));
         }
         if (mergeChanges.length > 0) {
-            groups.push(this.getGroup(provider, mergeChanges));
+            groups.push(await this.getGroup('Merged Changes', provider, mergeChanges));
         }
         return groups;
     }
 
-    private getGroup(provider: ScmProvider, changes: GitFileChange[]): ScmResourceGroup {
+    private async getGroup(label: string, provider: ScmProvider, changes: GitFileChange[]): Promise<ScmResourceGroup> {
+        const map: ScmResource[] = await Promise.all(changes.map(async change => {
+            const icon = await this.labelProvider.getIcon(new URI(change.uri));
+            const resource: ScmResource = {
+                sourceUri: new URI(change.uri),
+                decorations: {icon, letter: GitFileStatus.toAbbreviation(change.status, change.staged), color: this.getColor(change.status)},
+                async open(): Promise<void> {
+                }
+            };
+            return resource;
+        }));
         return {
-            label: 'Merge Changes',
+            label,
             hideWhenEmpty: false,
-            id: 'id',
+            id: `${GitViewContribution.GROUP_ID ++}`,
             provider,
             onDidChange: provider.onDidChange,
-            resources: changes.map(change => {
-                const resource: ScmResource = {
-                    sourceUri: new URI(change.uri),
-                    async open(): Promise<void> {
-                    }
-                };
-                return resource;
-            })
+            resources: map
         };
+    }
+
+    private getColor(status: GitFileStatus): string {
+        if (status === GitFileStatus.New) {
+            return 'var(--theia-success-color0)';
+        } else if (status === GitFileStatus.Deleted) {
+            return 'var(--theia-warn-color0)';
+        } else if (status === GitFileStatus.Conflicted) {
+            return 'var(--theia-error-color0)';
+        } else {
+            return 'var(--theia-brand-color0)';
+        }
     }
 
     /** Detect and handle added or removed repositories. */
@@ -320,6 +334,10 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             const removedScmRepo = this.scmService.repositories.find(scmRepo => scmRepo.provider.rootUri === removed.localUri);
             if (removedScmRepo) {
                 removedScmRepo.dispose();
+                const index = this.scmProviders.indexOf(removedScmRepo.provider);
+                if (index > -1) {
+                    this.scmProviders.splice(index, 1);
+                }
             }
         }
         this.dirtyRepositories = this.repositoryProvider.allRepositories;
@@ -743,6 +761,10 @@ export class ScmProviderImpl implements ScmProvider {
 
     fireChangeStatusBarCommands(commands: ScmCommand[]): void {
         this.onDidChangeStatusBarCommandsEmitter.fire(commands);
+    }
+
+    fireChangeResources(): void {
+        this.onDidChangeResourcesEmitter.fire(undefined);
     }
 
     fireChange(): void {

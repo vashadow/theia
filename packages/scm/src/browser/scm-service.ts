@@ -69,13 +69,14 @@ export interface ScmResource {
 }
 
 export interface ScmResourceDecorations {
-    icon?: URI;
+    icon?: string;
     tooltip?: string;
     strikeThrough?: boolean;
     faded?: boolean;
 
     source?: string;
     letter?: string;
+    color?: string;
 }
 
 export interface ScmCommand {

@@ -41,11 +41,12 @@ export class ScmWidget extends ReactWidget {
         this.title.iconClass = 'fa extensions-tab-icon';
         this.addClass('theia-scm');
         this.scrollContainer = ScmWidget.Styles.CHANGES_CONTAINER;
-
-        this.update();
     }
     @postConstruct()
     protected init() {
+        this.scmService.repositories.forEach(repo => repo.provider.onDidChangeResources(() => {
+            this.update();
+        }));
         this.scmService.onDidChangeSelectedRepositories(repository => {
             this.update();
         });
@@ -247,20 +248,32 @@ export namespace ScmWidget {
 
 export namespace ScmItem {
     export interface Props {
-        repositoryUri: string
-        uri: string
-        icon: string
+        name: string
+        path: string
+        icon: string,
+        letter: string,
+        color: string
     }
 }
 
 class ScmItem extends React.Component<ScmItem.Props> {
     render() {
-        const { uri, repositoryUri, icon } = this.props;
+        const { name, path, icon, letter, color } = this.props;
+        const style = {
+            color
+        };
         return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}`}>
             <div className='noWrapInfo'>
                 <span className={icon + ' file-icon'}></span>
-                <span className='name'>{uri.substring(uri.lastIndexOf('/') + 1) + ' '}</span>
-                <span className='path'>{uri.substring(uri.lastIndexOf(repositoryUri) + repositoryUri.length + 1, uri.lastIndexOf('/'))}</span>
+                <span className='name'>{name}</span>
+                <span className='path'>{path}</span>
+            </div>
+            <div className='itemButtonsContainer'>
+                {/*{this.renderGitItemButtons()}*/}
+                <div title={`${letter}`}
+                     className={'status'} style={style}>
+                    {letter}
+                </div>
             </div>
         </div>;
     }
@@ -279,7 +292,7 @@ class ScmGroupContainer extends React.Component<ScmGroupContainer.Props> {
             <div
                 className={ScmWidget.Styles.CHANGES_CONTAINER}
                 id={this.props.id}>
-                {this.props.repository.provider.groups.map(group => this.renderGroup(group))}
+                {this.props.repository.provider.groups ? this.props.repository.provider.groups.map(group => this.renderGroup(group)) : undefined}
             </div>
         );
     }
@@ -302,10 +315,16 @@ class ScmGroupContainer extends React.Component<ScmGroupContainer.Props> {
     }
 
     protected renderScmItem(resource: ScmResource, repoUri: string | undefined): React.ReactNode {
+        if (!repoUri) {
+            return undefined
+        }
+        const uri = resource.sourceUri.path.toString();
         return <ScmItem key={`${resource.sourceUri}`}
-                        uri={`${resource.sourceUri}`}
+                        name={uri.substring(uri.lastIndexOf('/') + 1) + ' '}
+                        path={uri.substring(uri.lastIndexOf(repoUri) + repoUri.length + 1, uri.lastIndexOf('/'))}
                         icon={`${(resource.decorations && resource.decorations.icon) ? resource.decorations.icon : ''}`}
-                        repositoryUri={`${repoUri}`}
+                        color={`${(resource.decorations && resource.decorations.color) ? resource.decorations.color : ''}`}
+                        letter={`${(resource.decorations && resource.decorations.letter) ? resource.decorations.letter : ''}`}
         />;
     }
 }

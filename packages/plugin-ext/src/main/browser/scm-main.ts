@@ -262,7 +262,7 @@ class ScmProviderImpl implements ScmProvider {
                 const decorations = resource.decorations;
                 if (decorations) {
                     scmDecorations = {
-                        icon: new URI(decorations.iconPath),
+                        icon: decorations.iconPath,
                         tooltip: decorations.tooltip,
                         strikeThrough: decorations.strikeThrough,
                         faded: decorations.faded
