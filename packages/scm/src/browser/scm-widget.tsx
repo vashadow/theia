@@ -20,6 +20,7 @@ import { AlertMessage } from '@theia/core/lib/browser/widgets/alert-message';
 import {InputValidator, ScmInput, ScmRepository, ScmResourceGroup, ScmService} from './scm-service';
 import {CommandRegistry} from '@theia/core';
 import {ScmResource} from '../browser';
+import {EditorManager} from '@theia/editor/lib/browser';
 
 @injectable()
 export class ScmWidget extends ReactWidget {
@@ -30,17 +31,20 @@ export class ScmWidget extends ReactWidget {
     protected inputCommandMessageValidator: InputValidator | undefined;
     protected inputCommandMessageValidationResult: InputValidator.Result | undefined;
     protected scrollContainer: string;
-    protected listContainer: ScmGroupContainer | undefined;
+    protected listContainer: ScmResourceGroupsContainer | undefined;
 
     constructor(@inject(ScmService) private readonly scmService: ScmService,
-                @inject(CommandRegistry) private readonly commandRegistry: CommandRegistry) {
+                @inject(CommandRegistry) private readonly commandRegistry: CommandRegistry,
+                @inject(EditorManager) protected readonly editorManager: EditorManager) {
         super();
         this.id = 'theia-scmContainer';
         this.title.label = 'Scm';
         this.title.caption = 'Scm';
         this.title.iconClass = 'fa extensions-tab-icon';
         this.addClass('theia-scm');
-        this.scrollContainer = ScmWidget.Styles.CHANGES_CONTAINER;
+        this.scrollContainer = ScmWidget.Styles.GROUPS_CONTAINER;
+
+        this.update();
     }
     @postConstruct()
     protected init() {
@@ -67,7 +71,7 @@ export class ScmWidget extends ReactWidget {
                     {this.renderInputCommand(input)}
                     {this.renderCommandBar(repository)}
                 </div>
-                <ScmGroupContainer
+                <ScmResourceGroupsContainer
                     id={this.scrollContainer}
                     repository={repository}
                 />
@@ -124,24 +128,7 @@ export class ScmWidget extends ReactWidget {
 
     protected renderCommandBar(repository: ScmRepository | undefined): React.ReactNode {
         return <div id='commandBar' className='flexcontainer'>
-            <div className='buttons'>
-                <a className='toolbar-button' title='Refresh' >
-                    <i className='fa fa-refresh' />
-                </a>
-                {
-                    repository ?
-                        <React.Fragment>
-                            <a className='toolbar-button' title='Add Signed-off-by' >
-                                <i className='fa fa-pencil-square-o ' />
-                            </a >
-                            <a className='toolbar-button' title='More...' >
-                                <i className='fa fa-ellipsis-h' />
-                            </a >
-                        </React.Fragment>
-                        : ''
-                }
-            </div >
-            <div className='placeholder'></div >
+            <div className='placeholder'/>
             {this.renderCommand(repository)}
         </div>;
     }
@@ -150,13 +137,12 @@ export class ScmWidget extends ReactWidget {
         if (repository && repository.provider.acceptInputCommand) {
             const command = repository.provider.acceptInputCommand;
             return <div className='buttons'>
-                <button className='theia-button' title='Commit all the staged changes'
+                <button className='theia-button'
                         onClick={() => {
                             this.executeInputCommand(command.id, repository);
-                        }}
-                >
+                        }} title={`${command.tooltip}`}>
                     {`${repository.provider.acceptInputCommand.text}`}
-                </button >
+                </button>
             </div>;
         }
     }
@@ -220,58 +206,41 @@ export class ScmWidget extends ReactWidget {
 
 export namespace ScmWidget {
 
-    // export namespace ContextMenu {
-    //     export const PATH: MenuPath = ['git-widget-context-menu'];
-    //     export const OTHER_GROUP: MenuPath = [...PATH, '1_other'];
-    //     export const COMMIT_GROUP: MenuPath = [...PATH, '2_commit'];
-    //     export const BATCH: MenuPath = [...PATH, '3_batch'];
-    // }
-
     export namespace Styles {
         export const MAIN_CONTAINER = 'theia-scm-main-container';
-        export const CHANGES_CONTAINER = 'changesOuterContainer';
+        export const GROUPS_CONTAINER = 'groups-outer-container';
         export const INPUT_MESSAGE_CONTAINER = 'theia-scm-input-message-container';
         export const INPUT_MESSAGE = 'theia-scm-input-message';
-        // export const MESSAGE_CONTAINER = 'theia-git-message';
-        // export const WARNING_MESSAGE = 'theia-git-message-warning';
-        export const VALIDATION_MESSAGE = 'theia-git-commit-validation-message';
-        // export const LAST_COMMIT_CONTAINER = 'theia-git-last-commit-container';
-        // export const LAST_COMMIT_DETAILS = 'theia-git-last-commit-details';
-        // export const LAST_COMMIT_MESSAGE_AVATAR = 'theia-git-last-commit-message-avatar';
-        // export const LAST_COMMIT_MESSAGE_SUMMARY = 'theia-git-last-commit-message-summary';
-        // export const LAST_COMMIT_MESSAGE_TIME = 'theia-git-last-commit-message-time';
-        //
-        // export const FLEX_CENTER = 'flex-container-center';
+        export const VALIDATION_MESSAGE = 'theia-scm-input-validation-message';
         export const NO_SELECT = 'no-select';
     }
 }
 
-export namespace ScmItem {
+export namespace ScmResourceItem {
     export interface Props {
         name: string
         path: string
         icon: string,
         letter: string,
-        color: string
+        color: string,
+        open: () => Promise<void>
     }
 }
 
-class ScmItem extends React.Component<ScmItem.Props> {
+class ScmResourceItem extends React.Component<ScmResourceItem.Props> {
     render() {
-        const { name, path, icon, letter, color } = this.props;
+        const { name, path, icon, letter, color, open } = this.props;
         const style = {
             color
         };
         return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}`}>
-            <div className='noWrapInfo'>
-                <span className={icon + ' file-icon'}></span>
+            <div className='noWrapInfo' onDoubleClick={open}>
+                <span className={icon + ' file-icon'}/>
                 <span className='name'>{name}</span>
                 <span className='path'>{path}</span>
             </div>
             <div className='itemButtonsContainer'>
-                {/*{this.renderGitItemButtons()}*/}
-                <div title={`${letter}`}
-                     className={'status'} style={style}>
+                <div title={`${letter}`} className={'status'} style={style}>
                     {letter}
                 </div>
             </div>
@@ -279,30 +248,40 @@ class ScmItem extends React.Component<ScmItem.Props> {
     }
 }
 
-export namespace ScmGroupContainer {
+export namespace ScmResourceGroupsContainer {
     export interface Props {
         id: string
         repository: ScmRepository
     }
 }
 
-class ScmGroupContainer extends React.Component<ScmGroupContainer.Props> {
+class ScmResourceGroupsContainer extends React.Component<ScmResourceGroupsContainer.Props> {
     render() {
         return (
-            <div
-                className={ScmWidget.Styles.CHANGES_CONTAINER}
-                id={this.props.id}>
+            <div className={ScmWidget.Styles.GROUPS_CONTAINER} id={this.props.id}>
                 {this.props.repository.provider.groups ? this.props.repository.provider.groups.map(group => this.renderGroup(group)) : undefined}
             </div>
         );
     }
     private renderGroup(group: ScmResourceGroup): React.ReactNode {
+        return <ScmResourceGroupContainer group={group}/>;
+    }
+}
+namespace ScmResourceGroupContainer {
+    export interface Props {
+        group: ScmResourceGroup
+    }
+}
+
+class ScmResourceGroupContainer extends React.Component<ScmResourceGroupContainer.Props> {
+    render() {
+        const group = this.props.group;
         return <div key={`${group.id}`}>
             <div className='theia-header git-theia-header' key={group.id}>
                 {`${group.label}`}
                 {this.renderChangeCount(group.resources.length)}
             </div>
-            <div>{group.resources.map(resource => this.renderScmItem(resource, group.provider.rootUri))}</div>
+            <div>{group.resources.map(resource => this.renderScmResourceItem(resource, group.provider.rootUri))}</div>
         </div>;
     }
 
@@ -314,17 +293,22 @@ class ScmGroupContainer extends React.Component<ScmGroupContainer.Props> {
         }
     }
 
-    protected renderScmItem(resource: ScmResource, repoUri: string | undefined): React.ReactNode {
+    protected renderScmResourceItem(resource: ScmResource, repoUri: string | undefined): React.ReactNode {
         if (!repoUri) {
-            return undefined
+            return undefined;
         }
+        const decorations = resource.decorations;
         const uri = resource.sourceUri.path.toString();
-        return <ScmItem key={`${resource.sourceUri}`}
-                        name={uri.substring(uri.lastIndexOf('/') + 1) + ' '}
-                        path={uri.substring(uri.lastIndexOf(repoUri) + repoUri.length + 1, uri.lastIndexOf('/'))}
-                        icon={`${(resource.decorations && resource.decorations.icon) ? resource.decorations.icon : ''}`}
-                        color={`${(resource.decorations && resource.decorations.color) ? resource.decorations.color : ''}`}
-                        letter={`${(resource.decorations && resource.decorations.letter) ? resource.decorations.letter : ''}`}
+        const project = repoUri.substring(repoUri.lastIndexOf('/') + 1);
+        const name = uri.substring(uri.lastIndexOf('/') + 1) + ' ';
+        const path = uri.substring(uri.lastIndexOf(project) + project.length + 1, uri.lastIndexOf('/'));
+        return <ScmResourceItem key={`${resource.sourceUri}`}
+                                name={name}
+                                path={path.length > 1 ? path : ''}
+                                icon={(decorations && decorations.icon) ? decorations.icon : ''}
+                                color={(decorations && decorations.color) ? decorations.color : ''}
+                                letter={(decorations && decorations.letter) ? decorations.letter : ''}
+                                open={resource.open}
         />;
     }
 }

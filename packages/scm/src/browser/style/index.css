@@ -95,7 +95,7 @@
     align-items: baseline;
 }
 
-#theia-scmContainer .changesOuterContainer {
+#theia-scmContainer .groups-outer-container {
     overflow-y: auto;
     border-top: 1px solid var(--theia-layout-color4);
     width: 100%;
@@ -248,32 +248,4 @@
 .theia-scm .scmItem .status {
     padding: 2px 4px;
     font-size: var(--theia-ui-font-size0);
-}
-
-.theia-scm .scmItem .status.new {
-    color: var(--theia-success-color0);
-}
-
-.theia-scm .scmItem .status.new.staged {
-    color: var(--theia-success-color0);
-}
-
-.theia-scm .scmItem .status.modified {
-    color: var(--theia-brand-color0);
-}
-
-.theia-scm .scmItem .status.deleted {
-    color: var(--theia-warn-color0);
-}
-
-.theia-scm .scmItem .status.renamed {
-    color: var(--theia-brand-color0);
-}
-
-.theia-scm .scmItem .status.conflicted {
-    color: var(--theia-error-color0);
-}
-
-.theia-scm .scmItem .status.copied {
-    color: var(--theia-brand-color0);
 }

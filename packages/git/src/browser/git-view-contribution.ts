@@ -61,6 +61,7 @@ import {
 import {GitRepositoryProvider} from './git-repository-provider';
 import {GitCommitMessageValidator} from '../browser/git-commit-message-validator';
 import {GitErrorHandler} from '../browser/git-error-handler';
+import {GIT_RESOURCE_SCHEME} from './git-resource';
 
 export const GIT_WIDGET_FACTORY_ID = 'git';
 
@@ -150,6 +151,8 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
 
     private dirtyRepositories: Repository[] = [];
     private scmProviders: ScmProvider[] = [];
+    private stagedChanges: GitFileChange[] = [];
+    private mergeChanges: GitFileChange[] = [];
 
     @inject(StatusBar) protected readonly statusBar: StatusBar;
     @inject(EditorManager) protected readonly editorManager: EditorManager;
@@ -282,28 +285,72 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
         if (mergeChanges.length > 0) {
             groups.push(await this.getGroup('Merged Changes', provider, mergeChanges));
         }
+        this.stagedChanges = stagedChanges;
+        this.mergeChanges = mergeChanges;
         return groups;
     }
 
     private async getGroup(label: string, provider: ScmProvider, changes: GitFileChange[]): Promise<ScmResourceGroup> {
-        const map: ScmResource[] = await Promise.all(changes.map(async change => {
+        const scmResources: ScmResource[] = await Promise.all(changes.map(async change => {
             const icon = await this.labelProvider.getIcon(new URI(change.uri));
             const resource: ScmResource = {
                 sourceUri: new URI(change.uri),
                 decorations: {icon, letter: GitFileStatus.toAbbreviation(change.status, change.staged), color: this.getColor(change.status)},
                 async open(): Promise<void> {
+                    open();
                 }
+            };
+            const open = () => {
+                const uriToOpen = this.getUriToOpen(change);
+                this.editorManager.open(uriToOpen, {mode: 'reveal'});
             };
             return resource;
         }));
+        const sort = (l: ScmResource, r: ScmResource) =>
+            l.sourceUri.toString().substring(l.sourceUri.toString().lastIndexOf('/')).localeCompare(r.sourceUri.toString().substring(r.sourceUri.toString().lastIndexOf('/')));
         return {
             label,
             hideWhenEmpty: false,
             id: `${GitViewContribution.GROUP_ID ++}`,
             provider,
             onDidChange: provider.onDidChange,
-            resources: map
+            resources: scmResources.sort(sort)
         };
+    }
+
+    getUriToOpen(change: GitFileChange): URI {
+        const changeUri: URI = new URI(change.uri);
+        if (change.status !== GitFileStatus.New) {
+            if (change.staged) {
+                return DiffUris.encode(
+                    changeUri.withScheme(GIT_RESOURCE_SCHEME).withQuery('HEAD'),
+                    changeUri.withScheme(GIT_RESOURCE_SCHEME),
+                    changeUri.displayName + ' (Index)');
+            }
+            if (this.stagedChanges.find(c => c.uri === change.uri)) {
+                return DiffUris.encode(
+                    changeUri.withScheme(GIT_RESOURCE_SCHEME),
+                    changeUri,
+                    changeUri.displayName + ' (Working tree)');
+            }
+            if (this.mergeChanges.find(c => c.uri === change.uri)) {
+                return changeUri;
+            }
+            return DiffUris.encode(
+                changeUri.withScheme(GIT_RESOURCE_SCHEME).withQuery('HEAD'),
+                changeUri,
+                changeUri.displayName + ' (Working tree)');
+        }
+        if (change.staged) {
+            return changeUri.withScheme(GIT_RESOURCE_SCHEME);
+        }
+        if (this.stagedChanges.find(c => c.uri === change.uri)) {
+            return DiffUris.encode(
+                changeUri.withScheme(GIT_RESOURCE_SCHEME),
+                changeUri,
+                changeUri.displayName + ' (Working tree)');
+        }
+        return changeUri;
     }
 
     private getColor(status: GitFileStatus): string {
@@ -721,9 +768,9 @@ export class ScmProviderImpl implements ScmProvider {
     get acceptInputCommand(): ScmCommand | undefined {
         return  {
                 id: 'git-command-id',
-                tooltip: 'tooltip',
-                text: 'text',
-                command: 'command'
+                tooltip: 'Commit all the staged changes',
+                text: 'Commit',
+                command: 'commit'
             };
     }
 
