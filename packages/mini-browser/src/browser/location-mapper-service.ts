@@ -16,6 +16,7 @@
 
 import { inject, injectable, named } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
+import { net } from '@theia/core/lib/common/net';
 import { Endpoint } from '@theia/core/lib/browser';
 import { MaybePromise, Prioritizeable } from '@theia/core/lib/common/types';
 import { ContributionProvider } from '@theia/core/lib/common/contribution-provider';
@@ -105,10 +106,37 @@ export class HttpsLocationMapper implements LocationMapper {
 
 }
 
-export class MiniBrowserEndpoint extends Endpoint {
-    constructor() {
-        super({ path: 'mini-browser' });
+/**
+ * Location mapper for IP version *4* and version *6* addresses.
+ */
+@injectable()
+export class IPAddressLocationMapper implements LocationMapper {
+
+    canHandle(location: string): MaybePromise<number> {
+        const ip = net.isIP(location);
+        return (ip === 4 || ip === 6) ? 1 : 0;
     }
+
+    map(location: string): MaybePromise<string> {
+        return `http://${location}`;
+    }
+
+}
+
+/**
+ * Location mapper for the `localhost`.
+ */
+@injectable()
+export class LocalhostLocationMapper implements LocationMapper {
+
+    canHandle(location: string): MaybePromise<number> {
+        return location.startsWith('localhost') ? 1 : 0;
+    }
+
+    map(location: string): MaybePromise<string> {
+        return `http://${location}`;
+    }
+
 }
 
 /**
@@ -133,4 +161,10 @@ export class FileLocationMapper implements LocationMapper {
         return new MiniBrowserEndpoint().getRestUrl().resolve(rawLocation).toString();
     }
 
+}
+
+export class MiniBrowserEndpoint extends Endpoint {
+    constructor() {
+        super({ path: 'mini-browser' });
+    }
 }
