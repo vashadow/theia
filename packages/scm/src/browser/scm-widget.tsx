@@ -14,13 +14,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 import { injectable, inject, postConstruct } from 'inversify';
-import {ReactWidget} from '@theia/core/lib/browser';
+import { ReactWidget} from '@theia/core/lib/browser';
 import * as React from 'react';
 import { AlertMessage } from '@theia/core/lib/browser/widgets/alert-message';
 import {InputValidator, ScmInput, ScmRepository, ScmResourceGroup, ScmService} from './scm-service';
 import {CommandRegistry} from '@theia/core';
 import {ScmResource} from '../browser';
 import {EditorManager} from '@theia/editor/lib/browser';
+import {ScmTitleRegistry} from './scm-title-registry';
 
 @injectable()
 export class ScmWidget extends ReactWidget {
@@ -33,9 +34,12 @@ export class ScmWidget extends ReactWidget {
     protected scrollContainer: string;
     protected listContainer: ScmResourceGroupsContainer | undefined;
 
-    constructor(@inject(ScmService) private readonly scmService: ScmService,
-                @inject(CommandRegistry) private readonly commandRegistry: CommandRegistry,
-                @inject(EditorManager) protected readonly editorManager: EditorManager) {
+    @inject(ScmTitleRegistry) protected readonly scmTitleRegistry: ScmTitleRegistry;
+    @inject(ScmService) private readonly scmService: ScmService;
+    @inject(CommandRegistry) private readonly commandRegistry: CommandRegistry;
+    @inject(EditorManager) protected readonly editorManager: EditorManager;
+
+    constructor() {
         super();
         this.id = 'theia-scmContainer';
         this.title.label = 'Scm';
@@ -234,7 +238,7 @@ class ScmResourceItem extends React.Component<ScmResourceItem.Props> {
             color
         };
         return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}`}>
-            <div className='noWrapInfo' onDoubleClick={open}>
+            <div className='noWrapInfo' onClick={open}>
                 <span className={icon + ' file-icon'}/>
                 <span className='name'>{name}</span>
                 <span className='path'>{path}</span>
@@ -264,7 +268,7 @@ class ScmResourceGroupsContainer extends React.Component<ScmResourceGroupsContai
         );
     }
     private renderGroup(group: ScmResourceGroup): React.ReactNode {
-        return <ScmResourceGroupContainer group={group}/>;
+        return <ScmResourceGroupContainer group={group} key={group.id}/>;
     }
 }
 namespace ScmResourceGroupContainer {
@@ -277,7 +281,7 @@ class ScmResourceGroupContainer extends React.Component<ScmResourceGroupContaine
     render() {
         const group = this.props.group;
         return <div key={`${group.id}`}>
-            <div className='theia-header git-theia-header' key={group.id}>
+            <div className='theia-header git-theia-header'>
                 {`${group.label}`}
                 {this.renderChangeCount(group.resources.length)}
             </div>

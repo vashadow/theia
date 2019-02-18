@@ -110,14 +110,6 @@
     width: 100%;
 }
 
-.theia-scm div:focus .theia-mod-selected{
-    background: var(--theia-accent-color3);
-}
-
-.theia-scm .theia-mod-selected{
-    background: var(--theia-accent-color4);
-}
-
 .theia-scm-main-container {
     display: flex;
     flex-direction: column;

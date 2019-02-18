@@ -62,6 +62,7 @@ import {GitRepositoryProvider} from './git-repository-provider';
 import {GitCommitMessageValidator} from '../browser/git-commit-message-validator';
 import {GitErrorHandler} from '../browser/git-error-handler';
 import {GIT_RESOURCE_SCHEME} from './git-resource';
+import {ScmMenuContribution, ScmTitleRegistry} from '@theia/scm/lib/browser/scm-title-registry';
 
 export const GIT_WIDGET_FACTORY_ID = 'git';
 
@@ -141,7 +142,7 @@ export namespace GIT_COMMANDS {
 
 @injectable()
 export class GitViewContribution extends AbstractViewContribution<GitWidget>
-    implements FrontendApplicationContribution, CommandContribution, MenuContribution, TabBarToolbarContribution {
+    implements FrontendApplicationContribution, CommandContribution, MenuContribution, TabBarToolbarContribution, ScmMenuContribution {
     private static GROUP_ID = 0;
     static GIT_SELECTED_REPOSITORY = 'git-selected-repository';
     static GIT_REPOSITORY_STATUS = 'git-repository-status';
@@ -302,7 +303,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             };
             const open = () => {
                 const uriToOpen = this.getUriToOpen(change);
-                this.editorManager.open(uriToOpen, {mode: 'reveal'});
+                this.editorManager.open(uriToOpen, {mode: 'activate'});
             };
             return resource;
         }));
@@ -699,6 +700,14 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
             command: GIT_COMMANDS.PUBLISH.id,
             tooltip: 'Publish Changes'
         };
+    }
+
+    registerScmMenuItems(registry: ScmTitleRegistry): void {
+        registry.registerItem({
+            id: '',
+            open(): void {
+            }
+        });
     }
 }
 export interface GitOpenFileOptions {
