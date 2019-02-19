@@ -28,6 +28,7 @@ import { ProxyPluginDeployerEntry } from './plugin-deployer-proxy-entry-impl';
 import { PluginDeployerFileHandlerContextImpl } from './plugin-deployer-file-handler-context-impl';
 import { PluginDeployerDirectoryHandlerContextImpl } from './plugin-deployer-directory-handler-context-impl';
 import { ILogger } from '@theia/core';
+import { PluginCliContribution } from './plugin-cli-contribution';
 
 @injectable()
 export class PluginDeployerImpl implements PluginDeployer {
@@ -37,6 +38,9 @@ export class PluginDeployerImpl implements PluginDeployer {
 
     @inject(PluginDeployerHandler)
     protected readonly hostedPluginServer: PluginDeployerHandler;
+
+    @inject(PluginCliContribution)
+    protected readonly cliContribution: PluginCliContribution;
 
     /**
      * Deployer entries.
@@ -83,8 +87,8 @@ export class PluginDeployerImpl implements PluginDeployer {
         // init resolvers
         await this.initResolvers();
 
-        // check THEIA_DEFAULT_PLUGINS or THEIA_PLUGINS env var
-        const defaultPluginsValue = process.env.THEIA_DEFAULT_PLUGINS || undefined;
+        // check the `--plugins` CLI option and THEIA_PLUGINS env var
+        const defaultPluginsValue = this.cliContribution.localDir();
         const pluginsValue = process.env.THEIA_PLUGINS || undefined;
 
         this.logger.debug('Found the list of default plugins ID on env:', defaultPluginsValue);
