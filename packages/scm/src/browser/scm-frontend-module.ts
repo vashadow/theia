@@ -27,7 +27,7 @@ import {ScmMenuContribution, ScmTitleRegistry} from './scm-title-registry';
 export default new ContainerModule(bind => {
     bind(ScmService).to(ScmServiceImpl).inSingletonScope();
 
-    bind(ScmWidget).toSelf();
+    bind(ScmWidget).toSelf().inSingletonScope();
     bind(WidgetFactory).toDynamicValue(ctx => ({
         id: SCM_WIDGET_FACTORY_ID,
         createWidget: () => ctx.container.get(ScmWidget)

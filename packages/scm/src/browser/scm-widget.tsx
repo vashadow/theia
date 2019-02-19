@@ -14,14 +14,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 import { injectable, inject, postConstruct } from 'inversify';
-import { ReactWidget} from '@theia/core/lib/browser';
+import {ContextMenuRenderer, ReactWidget} from '@theia/core/lib/browser';
 import * as React from 'react';
 import { AlertMessage } from '@theia/core/lib/browser/widgets/alert-message';
 import {InputValidator, ScmInput, ScmRepository, ScmResourceGroup, ScmService} from './scm-service';
-import {CommandRegistry} from '@theia/core';
+import {CommandRegistry, MenuPath} from '@theia/core';
 import {ScmResource} from '../browser';
 import {EditorManager} from '@theia/editor/lib/browser';
-import {ScmTitleRegistry} from './scm-title-registry';
+import {ScmTitleItem, ScmTitleRegistry} from './scm-title-registry';
 
 @injectable()
 export class ScmWidget extends ReactWidget {
@@ -38,6 +38,7 @@ export class ScmWidget extends ReactWidget {
     @inject(ScmService) private readonly scmService: ScmService;
     @inject(CommandRegistry) private readonly commandRegistry: CommandRegistry;
     @inject(EditorManager) protected readonly editorManager: EditorManager;
+    @inject(ContextMenuRenderer) protected readonly contextMenuRenderer: ContextMenuRenderer;
 
     constructor() {
         super();
@@ -68,19 +69,17 @@ export class ScmWidget extends ReactWidget {
             />;
         }
         const input = repository.input;
-        if (input) {
-            this.inputCommandMessageValidator = input.validateInput;
-            return <div className={ScmWidget.Styles.MAIN_CONTAINER}>
-                <div className='headerContainer'>
-                    {this.renderInputCommand(input)}
-                    {this.renderCommandBar(repository)}
-                </div>
-                <ScmResourceGroupsContainer
-                    id={this.scrollContainer}
-                    repository={repository}
-                />
-            </div>;
-        }
+        this.inputCommandMessageValidator = input.validateInput;
+        return <div className={ScmWidget.Styles.MAIN_CONTAINER}>
+            <div className='headerContainer'>
+                {this.renderInputCommand(input)}
+                {this.renderCommandBar(repository)}
+            </div>
+            <ScmResourceGroupsContainer
+                id={this.scrollContainer}
+                repository={repository}
+            />
+        </div>;
     }
 
     protected renderInputCommand(input: ScmInput): React.ReactNode {
@@ -132,9 +131,38 @@ export class ScmWidget extends ReactWidget {
 
     protected renderCommandBar(repository: ScmRepository | undefined): React.ReactNode {
         return <div id='commandBar' className='flexcontainer'>
+            <div className='buttons'>
+                {this.scmTitleRegistry.getItems().map(item => this.renderButton(item))}
+                <a className='toolbar-button' title='More...' onClick={this.showMoreToolButtons}>
+                    <i className='fa fa-ellipsis-h' />
+                </a >
+            </div >
             <div className='placeholder'/>
             {this.renderCommand(repository)}
         </div>;
+    }
+
+    protected readonly showMoreToolButtons = (event: React.MouseEvent<HTMLElement>) => this.doShowMoreToolButtons(event);
+    protected doShowMoreToolButtons(event: React.MouseEvent<HTMLElement>) {
+        const el = (event.target as HTMLElement).parentElement;
+        if (el) {
+            this.contextMenuRenderer.render(ScmWidget.ContextMenu.PATH, {
+                x: el.getBoundingClientRect().left,
+                y: el.getBoundingClientRect().top + el.offsetHeight
+            });
+        }
+    }
+
+    private renderButton(item: ScmTitleItem): React.ReactNode {
+        const command = this.commandRegistry.getCommand(item.command);
+        if (command) {
+            const execute = () => {
+                this.commandRegistry.executeCommand(command.id);
+            };
+            return <a className='toolbar-button' key={item.id} >
+                <i className={command.iconClass} title={command.label} onClick={execute}/>
+            </a>;
+        }
     }
 
     private renderCommand(repository: ScmRepository | undefined): React.ReactNode {
@@ -179,7 +207,7 @@ export class ScmWidget extends ReactWidget {
         this.resize(messageInput);
     }
 
-    protected resize(textArea: HTMLTextAreaElement): void {
+    resize(textArea: HTMLTextAreaElement): void {
         // tslint:disable-next-line:no-null-keyword
         const fontSize = Number.parseInt(window.getComputedStyle(textArea, undefined).getPropertyValue('font-size').split('px')[0] || '0', 10);
         const { value } = textArea;
@@ -212,11 +240,20 @@ export namespace ScmWidget {
 
     export namespace Styles {
         export const MAIN_CONTAINER = 'theia-scm-main-container';
+        export const PROVIDER_CONTAINER = 'theia-scm-provider-container';
+        export const PROVIDER_NAME = 'theia-scm-provider-name';
         export const GROUPS_CONTAINER = 'groups-outer-container';
         export const INPUT_MESSAGE_CONTAINER = 'theia-scm-input-message-container';
         export const INPUT_MESSAGE = 'theia-scm-input-message';
         export const VALIDATION_MESSAGE = 'theia-scm-input-validation-message';
         export const NO_SELECT = 'no-select';
+    }
+
+    export namespace ContextMenu {
+        export const PATH: MenuPath = ['scm-widget-context-menu'];
+        export const INPUT_GROUP: MenuPath = [...PATH, '1_input'];
+        export const OTHER_GROUP: MenuPath = [...PATH, '2_other'];
+        export const BATCH: MenuPath = [...PATH, '3_batch'];
     }
 }
 

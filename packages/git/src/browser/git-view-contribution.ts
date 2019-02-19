@@ -63,6 +63,7 @@ import {GitCommitMessageValidator} from '../browser/git-commit-message-validator
 import {GitErrorHandler} from '../browser/git-error-handler';
 import {GIT_RESOURCE_SCHEME} from './git-resource';
 import {ScmMenuContribution, ScmTitleRegistry} from '@theia/scm/lib/browser/scm-title-registry';
+import {ScmWidget} from '@theia/scm/lib/browser/scm-widget';
 
 export const GIT_WIDGET_FACTORY_ID = 'git';
 
@@ -169,6 +170,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
     @inject(Git) protected readonly git: Git;
     @inject(GitErrorHandler)protected readonly gitErrorHandler: GitErrorHandler;
     @inject(LabelProvider) protected readonly labelProvider: LabelProvider;
+    @inject(ScmWidget) protected readonly scmWidget: ScmWidget;
 
     constructor() {
         super({
@@ -398,7 +400,7 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
         const onDidChangeRepositoryEmitter = new Emitter<void>();
         disposableCollection.push(onDidChangeRepositoryEmitter);
         disposableCollection.push(onDidChangeResourcesEmitter);
-        const provider = new ScmProviderImpl('git', 'Git', uri);
+        const provider = new ScmProviderImpl('Git', uri.substring(uri.lastIndexOf('/') + 1), uri);
         this.scmProviders.push(provider);
         const repo =  this.scmService.registerScmProvider(provider);
         const commit = (scmRepository: ScmRepository, message: string) => {
@@ -441,28 +443,28 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
     registerMenus(menus: MenuModelRegistry): void {
         super.registerMenus(menus);
         [GIT_COMMANDS.FETCH, GIT_COMMANDS.PULL_DEFAULT, GIT_COMMANDS.PULL, GIT_COMMANDS.PUSH_DEFAULT, GIT_COMMANDS.PUSH, GIT_COMMANDS.MERGE].forEach(command =>
-            menus.registerMenuAction(GitWidget.ContextMenu.OTHER_GROUP, {
+            menus.registerMenuAction(ScmWidget.ContextMenu.OTHER_GROUP, {
                 commandId: command.id,
                 label: command.label.slice('Git: '.length)
             })
         );
-        menus.registerMenuAction(GitWidget.ContextMenu.COMMIT_GROUP, {
+        menus.registerMenuAction(ScmWidget.ContextMenu.COMMIT_GROUP, {
             commandId: GIT_COMMANDS.COMMIT_AMEND.id,
             label: 'Commit (Amend)'
         });
-        menus.registerMenuAction(GitWidget.ContextMenu.COMMIT_GROUP, {
+        menus.registerMenuAction(ScmWidget.ContextMenu.COMMIT_GROUP, {
             commandId: GIT_COMMANDS.COMMIT_SIGN_OFF.id,
             label: 'Commit (Signed Off)'
         });
-        menus.registerMenuAction(GitWidget.ContextMenu.BATCH, {
+        menus.registerMenuAction(ScmWidget.ContextMenu.BATCH, {
             commandId: GIT_COMMANDS.STAGE_ALL.id,
             label: 'Stage All Changes'
         });
-        menus.registerMenuAction(GitWidget.ContextMenu.BATCH, {
+        menus.registerMenuAction(ScmWidget.ContextMenu.BATCH, {
             commandId: GIT_COMMANDS.UNSTAGE_ALL.id,
             label: 'Unstage All Changes'
         });
-        menus.registerMenuAction(GitWidget.ContextMenu.BATCH, {
+        menus.registerMenuAction(ScmWidget.ContextMenu.BATCH, {
             commandId: GIT_COMMANDS.DISCARD_ALL.id,
             label: 'Discard All Changes'
         });
@@ -703,11 +705,55 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
     }
 
     registerScmMenuItems(registry: ScmTitleRegistry): void {
-        registry.registerItem({
-            id: '',
-            open(): void {
+        const refresh = () => {
+            this.repositoryProvider.refresh();
+        };
+        this.commandRegistry.registerCommand({id: 'git-refresh', label: 'Refresh', iconClass: 'fa fa-refresh'}, {
+            execute() {
+                refresh();
             }
         });
+        const signOff = () => this.doSignOff();
+        this.commandRegistry.registerCommand({id: 'git-commit-add-sign-off', label: 'Add Signed-off-by', iconClass: 'fa fa-pencil-square-o '}, {
+            execute() {
+                signOff();
+            }
+        });
+        registry.registerItem({
+            id: 'git-refresh',
+            command: 'git-refresh'
+        });
+        registry.registerItem({
+            id: 'git-commit-add-sign-off',
+            command: 'git-commit-add-sign-off'
+        });
+    }
+
+    protected async doSignOff() {
+        const { selectedRepository } = this.repositoryProvider;
+        if (selectedRepository) {
+            const [username, email] = await this.getUserConfig(selectedRepository);
+            const signOff = `\n\nSigned-off-by: ${username} <${email}>`;
+            const commitTextArea = document.getElementById(ScmWidget.Styles.INPUT_MESSAGE) as HTMLTextAreaElement;
+            if (commitTextArea) {
+                const content = commitTextArea.value;
+                if (content.endsWith(signOff)) {
+                    commitTextArea.value = content.substr(0, content.length - signOff.length);
+                } else {
+                    commitTextArea.value = `${content}${signOff}`;
+                }
+                this.scmWidget.resize(commitTextArea);
+                commitTextArea.focus();
+            }
+        }
+    }
+
+    protected async getUserConfig(repository: Repository): Promise<[string, string]> {
+        const [username, email] = (await Promise.all([
+            this.git.exec(repository, ['config', 'user.name']),
+            this.git.exec(repository, ['config', 'user.email'])
+        ])).map(result => result.stdout.trim());
+        return [username, email];
     }
 }
 export interface GitOpenFileOptions {

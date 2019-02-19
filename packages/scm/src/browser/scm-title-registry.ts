@@ -22,14 +22,14 @@ export interface ScmMenuContribution {
     registerScmMenuItems(registry: ScmTitleRegistry): void;
 }
 
-interface ScmMenu {
-    open(): void;
+export interface ScmTitleItem {
     id: string;
+    command: string;
 }
 
 @injectable()
 export class ScmTitleRegistry implements FrontendApplicationContribution {
-    private items: Map<string, ScmMenu> = new Map();
+    private items: ScmTitleItem[] = [];
 
     @inject(ContributionProvider)
     @named(ScmMenuContribution)
@@ -42,11 +42,11 @@ export class ScmTitleRegistry implements FrontendApplicationContribution {
         }
     }
 
-    registerItem(item: ScmMenu): void {
-        const id = item.id;
-        if (this.items.has(id)) {
-            throw new Error(`A toolbar item is already registered with the '${id}' ID.`);
-        }
-        this.items.set(id, item);
+    registerItem(item: ScmTitleItem): void {
+        this.items.push(item);
+    }
+
+    getItems(): ScmTitleItem[] {
+        return this.items;
     }
 }
