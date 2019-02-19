@@ -14,17 +14,18 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 import { injectable, inject, postConstruct } from 'inversify';
-import {ContextMenuRenderer, ReactWidget} from '@theia/core/lib/browser';
+import {ContextMenuRenderer, SELECTED_CLASS} from '@theia/core/lib/browser';
 import * as React from 'react';
 import { AlertMessage } from '@theia/core/lib/browser/widgets/alert-message';
 import {InputValidator, ScmInput, ScmRepository, ScmResourceGroup, ScmService} from './scm-service';
 import {CommandRegistry, MenuPath} from '@theia/core';
-import {ScmResource} from '../browser';
 import {EditorManager} from '@theia/editor/lib/browser';
 import {ScmTitleItem, ScmTitleRegistry} from './scm-title-registry';
+import {ScmNavigableListWidget} from './scm-navigable-list-widget';
+import {ScmResourceNode} from './scm-item-node';
 
 @injectable()
-export class ScmWidget extends ReactWidget {
+export class ScmWidget extends ScmNavigableListWidget<ScmResourceNode> {
     private static MESSAGE_BOX_MIN_HEIGHT = 25;
 
     protected message: string = '';
@@ -33,6 +34,7 @@ export class ScmWidget extends ReactWidget {
     protected inputCommandMessageValidationResult: InputValidator.Result | undefined;
     protected scrollContainer: string;
     protected listContainer: ScmResourceGroupsContainer | undefined;
+    protected readonly selectItem = (change: ScmResourceNode) => this.selectNode(change);
 
     @inject(ScmTitleRegistry) protected readonly scmTitleRegistry: ScmTitleRegistry;
     @inject(ScmService) private readonly scmService: ScmService;
@@ -78,6 +80,7 @@ export class ScmWidget extends ReactWidget {
             <ScmResourceGroupsContainer
                 id={this.scrollContainer}
                 repository={repository}
+                selectItem={this.selectItem}
             />
         </div>;
     }
@@ -264,18 +267,21 @@ export namespace ScmResourceItem {
         icon: string,
         letter: string,
         color: string,
+        select: (item: ScmResourceNode) => void,
+        item: ScmResourceNode;
         open: () => Promise<void>
     }
 }
 
 class ScmResourceItem extends React.Component<ScmResourceItem.Props> {
+    protected readonly selectChange = () => this.props.select(this.props.item);
     render() {
-        const { name, path, icon, letter, color, open } = this.props;
+        const { name, path, icon, letter, color, open, item} = this.props;
         const style = {
             color
         };
-        return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}`}>
-            <div className='noWrapInfo' onClick={open}>
+        return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}${item.selected ? ' ' + SELECTED_CLASS : ''}`}>
+            <div className='noWrapInfo' onClick={this.selectChange} onDoubleClick={open}>
                 <span className={icon + ' file-icon'}/>
                 <span className='name'>{name}</span>
                 <span className='path'>{path}</span>
@@ -293,6 +299,7 @@ export namespace ScmResourceGroupsContainer {
     export interface Props {
         id: string
         repository: ScmRepository
+        selectItem: (item: ScmResourceNode) => void
     }
 }
 
@@ -305,12 +312,13 @@ class ScmResourceGroupsContainer extends React.Component<ScmResourceGroupsContai
         );
     }
     private renderGroup(group: ScmResourceGroup): React.ReactNode {
-        return <ScmResourceGroupContainer group={group} key={group.id}/>;
+        return <ScmResourceGroupContainer group={group} key={group.id} selectItem={this.props.selectItem}/>;
     }
 }
 namespace ScmResourceGroupContainer {
     export interface Props {
         group: ScmResourceGroup
+        selectItem: (item: ScmResourceNode) => void
     }
 }
 
@@ -334,7 +342,7 @@ class ScmResourceGroupContainer extends React.Component<ScmResourceGroupContaine
         }
     }
 
-    protected renderScmResourceItem(resource: ScmResource, repoUri: string | undefined): React.ReactNode {
+    protected renderScmResourceItem(resource: ScmResourceNode, repoUri: string | undefined): React.ReactNode {
         if (!repoUri) {
             return undefined;
         }
@@ -349,6 +357,8 @@ class ScmResourceGroupContainer extends React.Component<ScmResourceGroupContaine
                                 icon={(decorations && decorations.icon) ? decorations.icon : ''}
                                 color={(decorations && decorations.color) ? decorations.color : ''}
                                 letter={(decorations && decorations.letter) ? decorations.letter : ''}
+                                item={resource}
+                                select={this.props.selectItem}
                                 open={resource.open}
         />;
     }
