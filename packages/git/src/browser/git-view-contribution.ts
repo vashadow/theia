@@ -448,11 +448,11 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
                 label: command.label.slice('Git: '.length)
             })
         );
-        menus.registerMenuAction(ScmWidget.ContextMenu.COMMIT_GROUP, {
+        menus.registerMenuAction(ScmWidget.ContextMenu.INPUT_GROUP, {
             commandId: GIT_COMMANDS.COMMIT_AMEND.id,
             label: 'Commit (Amend)'
         });
-        menus.registerMenuAction(ScmWidget.ContextMenu.COMMIT_GROUP, {
+        menus.registerMenuAction(ScmWidget.ContextMenu.INPUT_GROUP, {
             commandId: GIT_COMMANDS.COMMIT_SIGN_OFF.id,
             label: 'Commit (Signed Off)'
         });
