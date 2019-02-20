@@ -279,6 +279,10 @@ class ScmProviderImpl implements ScmProvider {
             }));
         }
     }
+
+    fireChangeStatusBarCommands(commands: ScmCommand[]): void {
+        this.onDidChangeStatusBarCommandsEmitter.fire(commands);
+    }
 }
 
 class ResourceGroup implements ScmResourceGroup {

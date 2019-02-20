@@ -62,8 +62,15 @@ import {GitRepositoryProvider} from './git-repository-provider';
 import {GitCommitMessageValidator} from '../browser/git-commit-message-validator';
 import {GitErrorHandler} from '../browser/git-error-handler';
 import {GIT_RESOURCE_SCHEME} from './git-resource';
-import {ScmMenuContribution, ScmTitleRegistry} from '@theia/scm/lib/browser/scm-title-registry';
+import {
+    ScmMenuContribution,
+    ScmTitleRegistry
+} from '@theia/scm/lib/browser/scm-title-registry';
 import {ScmWidget} from '@theia/scm/lib/browser/scm-widget';
+import {
+    ScmResourceComaandContribution,
+    ScmResourceCommandRegistry
+} from '@theia/scm/lib/browser/scm-resource-command-registry';
 
 export const GIT_WIDGET_FACTORY_ID = 'git';
 
@@ -143,8 +150,8 @@ export namespace GIT_COMMANDS {
 
 @injectable()
 export class GitViewContribution extends AbstractViewContribution<GitWidget>
-    implements FrontendApplicationContribution, CommandContribution, MenuContribution, TabBarToolbarContribution, ScmMenuContribution {
-    private static GROUP_ID = 0;
+    implements FrontendApplicationContribution, CommandContribution, MenuContribution, TabBarToolbarContribution, ScmMenuContribution, ScmResourceComaandContribution {
+    // private static GROUP_ID = 0;
     static GIT_SELECTED_REPOSITORY = 'git-selected-repository';
     static GIT_REPOSITORY_STATUS = 'git-repository-status';
     static GIT_SYNC_STATUS = 'git-sync-status';
@@ -314,7 +321,8 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
         return {
             label,
             hideWhenEmpty: false,
-            id: `${GitViewContribution.GROUP_ID ++}`,
+            // id: `${GitViewContribution.GROUP_ID ++}`,
+            id: label,
             provider,
             onDidChange: provider.onDidChange,
             resources: scmResources.sort(sort)
@@ -726,6 +734,13 @@ export class GitViewContribution extends AbstractViewContribution<GitWidget>
         registry.registerItem({
             id: 'git-commit-add-sign-off',
             command: 'git-commit-add-sign-off'
+        });
+    }
+
+    registerScmResourceCommands(registry: ScmResourceCommandRegistry) {
+        registry.registerItem('Changes', {
+            id: 'git-refresh',
+            command: 'git-refresh'
         });
     }
 

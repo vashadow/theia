@@ -23,6 +23,7 @@ import {EditorManager} from '@theia/editor/lib/browser';
 import {ScmTitleItem, ScmTitleRegistry} from './scm-title-registry';
 import {ScmNavigableListWidget} from './scm-navigable-list-widget';
 import {ScmResourceNode} from './scm-item-node';
+import {ScmResourceCommandRegistry} from './scm-resource-command-registry';
 
 @injectable()
 export class ScmWidget extends ScmNavigableListWidget<ScmResourceNode> {
@@ -37,6 +38,7 @@ export class ScmWidget extends ScmNavigableListWidget<ScmResourceNode> {
     protected readonly selectItem = (change: ScmResourceNode) => this.selectNode(change);
 
     @inject(ScmTitleRegistry) protected readonly scmTitleRegistry: ScmTitleRegistry;
+    @inject(ScmResourceCommandRegistry) protected readonly scmResourceCommandRegistry: ScmResourceCommandRegistry;
     @inject(ScmService) private readonly scmService: ScmService;
     @inject(CommandRegistry) private readonly commandRegistry: CommandRegistry;
     @inject(EditorManager) protected readonly editorManager: EditorManager;
@@ -81,6 +83,8 @@ export class ScmWidget extends ScmNavigableListWidget<ScmResourceNode> {
                 id={this.scrollContainer}
                 repository={repository}
                 selectItem={this.selectItem}
+                scmResourceCommandRegistry={this.scmResourceCommandRegistry}
+                commandRegistry={this.commandRegistry}
             />
         </div>;
     }
@@ -268,38 +272,69 @@ export namespace ScmResourceItem {
         letter: string,
         color: string,
         select: (item: ScmResourceNode) => void,
-        item: ScmResourceNode;
+        resource: ScmResourceNode;
+        groupId: string,
+        scmResourceCommandRegistry: ScmResourceCommandRegistry,
+        commandRegistry: CommandRegistry,
         open: () => Promise<void>
     }
 }
 
 class ScmResourceItem extends React.Component<ScmResourceItem.Props> {
-    protected readonly selectChange = () => this.props.select(this.props.item);
+    protected readonly selectChange = () => this.props.select(this.props.resource);
     render() {
-        const { name, path, icon, letter, color, open, item} = this.props;
+        const { name, path, icon, letter, color, open} = this.props;
         const style = {
             color
         };
-        return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}${item.selected ? ' ' + SELECTED_CLASS : ''}`}>
+        return <div className={`scmItem ${ScmWidget.Styles.NO_SELECT}${this.props.resource.selected ? ' ' + SELECTED_CLASS : ''}`}>
             <div className='noWrapInfo' onClick={this.selectChange} onDoubleClick={open}>
                 <span className={icon + ' file-icon'}/>
                 <span className='name'>{name}</span>
                 <span className='path'>{path}</span>
             </div>
             <div className='itemButtonsContainer'>
+                {/*{this.renderGitItemButtons()}*/}
+                {this.props.scmResourceCommandRegistry.getItems(this.props.groupId).map(item => this.renderGitItemButtons(item))}
                 <div title={`${letter}`} className={'status'} style={style}>
                     {letter}
                 </div>
             </div>
         </div>;
     }
+
+    protected renderGitItemButtons(item: ScmTitleItem): React.ReactNode {
+        const command = this.props.commandRegistry.getCommand(item.command);
+        if (command) {
+            const execute = () => {
+                this.props.commandRegistry.executeCommand(item.command);
+            };
+            return <div className='buttons'>
+                <a className={command.iconClass} title={command.label} onClick={execute}>
+                    <i className='open-file' />
+                </a>
+            </div>;
+        }
+            {/*{*/}
+                {/*<React.Fragment>*/}
+                    {/*<a className='toolbar-button' title='Discard Changes' >*/}
+                        {/*<i className='fa fa-undo' />*/}
+                    {/*</a>*/}
+                    {/*<a className='toolbar-button' title='Stage Changes' >*/}
+                        {/*<i className='fa fa-plus' />*/}
+                    {/*</a>*/}
+                {/*</React.Fragment>*/}
+            {/*}*/}
+    }
 }
 
 export namespace ScmResourceGroupsContainer {
     export interface Props {
-        id: string
-        repository: ScmRepository
-        selectItem: (item: ScmResourceNode) => void
+        id: string,
+        repository: ScmRepository,
+        selectItem: (item: ScmResourceNode) => void,
+        scmResourceCommandRegistry: ScmResourceCommandRegistry,
+        commandRegistry: CommandRegistry;
     }
 }
 
@@ -312,13 +347,20 @@ class ScmResourceGroupsContainer extends React.Component<ScmResourceGroupsContai
         );
     }
     private renderGroup(group: ScmResourceGroup): React.ReactNode {
-        return <ScmResourceGroupContainer group={group} key={group.id} selectItem={this.props.selectItem}/>;
+        return <ScmResourceGroupContainer
+            group={group}
+            key={group.id}
+            selectItem={this.props.selectItem}
+            scmResourceCommandRegistry={this.props.scmResourceCommandRegistry}
+            commandRegistry={this.props.commandRegistry}/>;
     }
 }
 namespace ScmResourceGroupContainer {
     export interface Props {
-        group: ScmResourceGroup
-        selectItem: (item: ScmResourceNode) => void
+        group: ScmResourceGroup,
+        selectItem: (item: ScmResourceNode) => void,
+        scmResourceCommandRegistry: ScmResourceCommandRegistry
+        commandRegistry: CommandRegistry;
     }
 }
 
@@ -357,9 +399,12 @@ class ScmResourceGroupContainer extends React.Component<ScmResourceGroupContaine
                                 icon={(decorations && decorations.icon) ? decorations.icon : ''}
                                 color={(decorations && decorations.color) ? decorations.color : ''}
                                 letter={(decorations && decorations.letter) ? decorations.letter : ''}
-                                item={resource}
+                                resource={resource}
                                 select={this.props.selectItem}
                                 open={resource.open}
+                                groupId={this.props.group.id}
+                                commandRegistry={this.props.commandRegistry}
+                                scmResourceCommandRegistry={this.props.scmResourceCommandRegistry}
         />;
     }
 }
