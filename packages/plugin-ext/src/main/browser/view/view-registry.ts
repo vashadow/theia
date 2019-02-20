@@ -17,14 +17,9 @@
 import { injectable, inject } from 'inversify';
 import { ViewContainer, View } from '../../../common';
 import { ApplicationShell } from '@theia/core/lib/browser';
-import {
-    FrontendApplicationState,
-    FrontendApplicationStateService
-} from '@theia/core/lib/browser/frontend-application-state';
+import { FrontendApplicationStateService } from '@theia/core/lib/browser/frontend-application-state';
 import { ViewsContainerWidget } from './views-container-widget';
 import { TreeViewWidget } from './tree-views-main';
-
-const READY: FrontendApplicationState = 'ready';
 
 @injectable()
 export class ViewRegistry {
@@ -42,7 +37,7 @@ export class ViewRegistry {
         const widget = new ViewsContainerWidget(viewContainer);
         this.containersWidgets.set(viewContainer.id, widget);
         if (!this.pending) {
-            this.pending = this.pendingReady();
+            this.pending = this.applicationStateService.reachedState('ready');
         }
         this.pending = this.pending.then(() => {
             if (widget && !this.applicationShell.getTabBarFor(widget)) {
@@ -67,19 +62,6 @@ export class ViewRegistry {
                 viewsContainerWidget.addWidget(viewId, treeViewWidget);
                 this.applicationShell.activateWidget(viewsContainerWidget.id);
             }
-        });
-    }
-
-    private pendingReady(): Promise<void> {
-        if (this.applicationStateService.state === READY) {
-            return Promise.resolve();
-        }
-        return new Promise(resolve => {
-            this.applicationStateService.onStateChanged(event => {
-                if (event === READY) {
-                    resolve();
-                }
-            });
         });
     }
 }
